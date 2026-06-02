@@ -1,74 +1,30 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>HyperChat - Профиль</title>
-
-<link rel="stylesheet"
-href="{{ url_for('static', filename='style.css') }}">
-
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HyperChat — Профиль</title>
+  <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+  <div class="container">
+    <nav>
+      <a href="/profile">Профиль</a>
+      <a href="/friends">Друзья</a>
+      <a href="/logout">Выйти</a>
+    </nav>
 
-<div class="bg1"></div>
-<div class="bg2"></div>
+    <h2>Профиль</h2>
 
-<div class="sidebar">
-
-    <div class="logo">
-        ⚡ HyperChat
+    <div class="profile-info">
+      <p><strong>Ник:</strong> {{ user[0] }}</p>
+      <p><strong>Код:</strong> {{ user[1] }}</p>
     </div>
 
-    <a href="/profile" class="menu-btn active">
-        👤 Профиль
-    </a>
-
-    <a href="/friends" class="menu-btn">
-        👥 Друзья
-    </a>
-
-    <a href="/logout" class="menu-btn logout">
-        🚪 Выйти
-    </a>
-
-</div>
-
-<div class="content">
-
-    <div class="profile-card">
-
-        <div class="avatar">
-            {{ user[0][0]|upper }}
-        </div>
-
-        <h1>{{ user[0] }}</h1>
-
-        <div class="hx-code">
-            {{ user[1] }}
-        </div>
-
-        <form method="POST">
-
-            <label>
-                📝 О себе
-            </label>
-
-            <textarea
-                name="bio"
-                placeholder="Расскажите немного о себе..."
-            >{{ user[2] }}</textarea>
-
-            <button type="submit">
-                💾 Сохранить
-            </button>
-
-        </form>
-
-    </div>
-
-</div>
-
+    <form method="post">
+      <textarea name="bio" rows="6" placeholder="Биография">{{ user[2] }}</textarea><br>
+      <button type="submit">Сохранить био</button>
+    </form>
+  </div>
 </body>
 </html>

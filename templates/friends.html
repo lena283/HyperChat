@@ -1,115 +1,42 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>HyperChat - Друзья</title>
-
-<link rel="stylesheet"
-href="{{ url_for('static', filename='style.css') }}">
-
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HyperChat — Друзья</title>
+  <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+  <div class="container">
+    <nav>
+      <a href="/profile">Профиль</a>
+      <a href="/friends">Друзья</a>
+      <a href="/logout">Выйти</a>
+    </nav>
 
-<div class="bg1"></div>
-<div class="bg2"></div>
+    <h2>Друзья</h2>
 
-<div class="sidebar">
-
-    <div class="logo">
-        ⚡ HyperChat
-    </div>
-
-    <a href="/profile" class="menu-btn">
-        👤 Профиль
-    </a>
-
-    <a href="/friends" class="menu-btn active">
-        👥 Друзья
-    </a>
-
-    <a href="/logout" class="menu-btn logout">
-        🚪 Выйти
-    </a>
-
-</div>
-
-<div class="content">
-
-    <div class="profile-card">
-
-        <h1>👥 Друзья</h1>
-
-        <form action="/add_friend" method="POST">
-
-            <input
-                type="text"
-                name="friend_code"
-                placeholder="Введите HX-код друга"
-                required
-            >
-
-            <button type="submit">
-                ➕ Добавить друга
-            </button>
-
-        </form>
-
-    </div>
-
-    {% if friends %}
-
-        {% for friend in friends %}
-
-        <div class="friend-card">
-
-            <div class="friend-left">
-
-                <div class="friend-avatar">
-                    {{ friend[0][0]|upper }}
-                </div>
-
-                <div>
-
-                    <div class="friend-name">
-                        {{ friend[0] }}
-                    </div>
-
-                    <div class="friend-code">
-                        {{ friend[1] }}
-                    </div>
-
-                </div>
-
-            </div>
-
-            <a
-                href="/delete_friend/{{ friend[1] }}"
-                class="delete-btn"
-            >
-                🗑 Удалить
-            </a>
-
-        </div>
-
-        {% endfor %}
-
-    {% else %}
-
-        <div class="empty-card">
-
-            <h2>Пока нет друзей</h2>
-
-            <p>
-                Добавьте друга по его HX-коду.
-            </p>
-
-        </div>
-
+    {% if not friends %}
+      <p style="text-align:center;">У вас пока нет друзей. Добавьте друга по его коду HX-......</p>
     {% endif %}
 
-</div>
+    <form method="post" action="/add_friend">
+      <input name="friend_code" placeholder="HX-123456" required>
+      <button type="submit">Добавить</button>
+    </form>
 
+    {% if friends %}
+      <ul>
+        {% for f in friends %}
+          <li>
+            <span>{{ f[0] }} ({{ f[1] }})</span>
+            <span>
+              <a href="/chat/{{ f[1] }}">Чат</a>
+            </span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </div>
 </body>
 </html>

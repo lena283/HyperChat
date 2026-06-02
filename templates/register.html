@@ -1,57 +1,23 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>HyperChat - Регистрация</title>
-
-<link rel="stylesheet"
-href="{{ url_for('static', filename='style.css') }}">
-
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HyperChat — Регистрация</title>
+  <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+  <div class="container">
+    <h2>HyperChat регистрация</h2>
 
-<div class="bg1"></div>
-<div class="bg2"></div>
+    {% if error %}
+      <div class="error">{{ error }}</div>
+    {% endif %}
 
-<div class="register-container">
-
-    <div class="logo">
-        ⚡ HyperChat
-    </div>
-
-    <div class="subtitle">
-        Добро пожаловать в HyperChat
-    </div>
-
-    <div class="card">
-
-        <h1>Создать профиль</h1>
-
-        <p class="description">
-            Введите свой ник. HX-код будет создан автоматически.
-        </p>
-
-        <form method="POST">
-
-            <input
-                type="text"
-                name="nickname"
-                placeholder="Ваш ник"
-                required
-                maxlength="25"
-            >
-
-            <button type="submit">
-                🚀 Войти в HyperChat
-            </button>
-
-        </form>
-
-    </div>
-
-</div>
-
+    <form method="post">
+      <input name="nickname" placeholder="Никнейм" required autofocus>
+      <button type="submit">Создать аккаунт</button>
+    </form>
+  </div>
 </body>
 </html>
