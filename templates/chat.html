@@ -1,0 +1,40 @@
+<h1>💬 Чат</h1>
+
+<div class="chat-box">
+
+{% for msg in messages %}
+
+<div class="
+{% if msg[0] == session['hx_code'] %}
+my-message
+{% else %}
+friend-message
+{% endif %}
+">
+
+{{ msg[2] }}
+
+</div>
+
+{% endfor %}
+
+</div>
+
+<form action="/send_message" method="POST">
+
+<input
+type="hidden"
+name="receiver"
+value="{{ friend_code }}">
+
+<input
+type="text"
+name="message"
+placeholder="Сообщение..."
+required>
+
+<button>
+➤
+</button>
+
+</form>

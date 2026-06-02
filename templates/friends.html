@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>HyperChat - Друзья</title>
+
+<link rel="stylesheet"
+href="{{ url_for('static', filename='style.css') }}">
+
+</head>
+<body>
+
+<div class="bg1"></div>
+<div class="bg2"></div>
+
+<div class="sidebar">
+
+    <div class="logo">
+        ⚡ HyperChat
+    </div>
+
+    <a href="/profile" class="menu-btn">
+        👤 Профиль
+    </a>
+
+    <a href="/friends" class="menu-btn active">
+        👥 Друзья
+    </a>
+
+    <a href="/logout" class="menu-btn logout">
+        🚪 Выйти
+    </a>
+
+</div>
+
+<div class="content">
+
+    <div class="profile-card">
+
+        <h1>👥 Друзья</h1>
+
+        <form action="/add_friend" method="POST">
+
+            <input
+                type="text"
+                name="friend_code"
+                placeholder="Введите HX-код друга"
+                required
+            >
+
+            <button type="submit">
+                ➕ Добавить друга
+            </button>
+
+        </form>
+
+    </div>
+
+    {% if friends %}
+
+        {% for friend in friends %}
+
+        <div class="friend-card">
+
+            <div class="friend-left">
+
+                <div class="friend-avatar">
+                    {{ friend[0][0]|upper }}
+                </div>
+
+                <div>
+
+                    <div class="friend-name">
+                        {{ friend[0] }}
+                    </div>
+
+                    <div class="friend-code">
+                        {{ friend[1] }}
+                    </div>
+
+                </div>
+
+            </div>
+
+            <a
+                href="/delete_friend/{{ friend[1] }}"
+                class="delete-btn"
+            >
+                🗑 Удалить
+            </a>
+
+        </div>
+
+        {% endfor %}
+
+    {% else %}
+
+        <div class="empty-card">
+
+            <h2>Пока нет друзей</h2>
+
+            <p>
+                Добавьте друга по его HX-коду.
+            </p>
+
+        </div>
+
+    {% endif %}
+
+</div>
+
+</body>
+</html>
