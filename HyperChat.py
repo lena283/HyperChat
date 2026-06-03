@@ -62,12 +62,7 @@ def generate_hx():
 
         conn = sqlite3.connect(DB_NAME)
         cur = conn.cursor()
-
-        cur.execute(
-            "SELECT id FROM users WHERE hx_code=?",
-            (hx,)
-        )
-
+        cur.execute("SELECT id FROM users WHERE hx_code=?", (hx,))
         exists = cur.fetchone()
         conn.close()
 
@@ -78,15 +73,12 @@ def generate_hx():
 def get_user(hx_code):
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
-
     cur.execute(
-        "SELECT nickname,hx_code,bio FROM users WHERE hx_code=?",
+        "SELECT nickname, hx_code, bio FROM users WHERE hx_code=?",
         (hx_code,)
     )
-
     user = cur.fetchone()
     conn.close()
-
     return user
 
 
@@ -113,7 +105,6 @@ def register():
 
         conn = sqlite3.connect(DB_NAME)
         cur = conn.cursor()
-
         cur.execute(
             """
             INSERT INTO users(
@@ -122,12 +113,8 @@ def register():
             )
             VALUES(?,?)
             """,
-            (
-                nickname,
-                hx_code
-            )
+            (nickname, hx_code)
         )
-
         conn.commit()
         conn.close()
 
@@ -152,17 +139,13 @@ def profile():
 
     if request.method == "POST":
         bio = request.form["bio"]
-
         cur.execute(
             """
             UPDATE users
             SET bio=?
             WHERE hx_code=?
             """,
-            (
-                bio,
-                hx_code
-            )
+            (bio, hx_code)
         )
         conn.commit()
 
@@ -176,14 +159,10 @@ def profile():
         """,
         (hx_code,)
     )
-
     user = cur.fetchone()
     conn.close()
 
-    return render_template(
-        "profile.html",
-        user=user
-    )
+    return render_template("profile.html", user=user)
 
 
 # ==========================================
@@ -196,13 +175,9 @@ def add_friend():
         return redirect("/register")
 
     owner = session["hx_code"]
+    friend_code = request.form.get("friend_code", "").strip().upper()
 
-    friend_code = request.form.get(
-        "friend_code",
-        ""
-    ).strip().upper()
-
-    if friend_code == owner:
+    if not friend_code or friend_code == owner:
         return redirect("/friends")
 
     conn = sqlite3.connect(DB_NAME)
@@ -212,7 +187,6 @@ def add_friend():
         "SELECT hx_code FROM users WHERE hx_code=?",
         (friend_code,)
     )
-
     user = cur.fetchone()
 
     if not user:
@@ -228,7 +202,6 @@ def add_friend():
         """,
         (owner, friend_code)
     )
-
     exists = cur.fetchone()
 
     if not exists:
@@ -260,7 +233,6 @@ def friends():
         return redirect("/register")
 
     hx_code = session["hx_code"]
-
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
 
@@ -286,18 +258,12 @@ def friends():
             """,
             (row[0],)
         )
-
         friend = cur.fetchone()
-
         if friend:
             friend_list.append(friend)
 
     conn.close()
-
-    return render_template(
-        "friends.html",
-        friends=friend_list
-    )
+    return render_template("friends.html", friends=friend_list)
 
 
 # ==========================================
@@ -310,7 +276,6 @@ def delete_friend(friend_code):
         return redirect("/register")
 
     owner = session["hx_code"]
-
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
 
@@ -320,15 +285,11 @@ def delete_friend(friend_code):
         WHERE owner_code=?
         AND friend_code=?
         """,
-        (
-            owner,
-            friend_code
-        )
+        (owner, friend_code)
     )
 
     conn.commit()
     conn.close()
-
     return redirect("/friends")
 
 
@@ -342,7 +303,6 @@ def chat(friend_code):
         return redirect("/register")
 
     my_code = session["hx_code"]
-
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
 
@@ -354,7 +314,6 @@ def chat(friend_code):
         """,
         (friend_code,)
     )
-
     friend = cur.fetchone()
 
     if not friend:
@@ -374,12 +333,7 @@ def chat(friend_code):
         (sender_code=? AND receiver_code=?)
         ORDER BY id
         """,
-        (
-            my_code,
-            friend_code,
-            friend_code,
-            my_code
-        )
+        (my_code, friend_code, friend_code, my_code)
     )
 
     messages = cur.fetchall()
@@ -394,10 +348,7 @@ def chat(friend_code):
     )
 
 
-@app.route(
-    "/send_message/<friend_code>",
-    methods=["POST"]
-)
+@app.route("/send_message/<friend_code>", methods=["POST"])
 def send_message(friend_code):
     if "hx_code" not in session:
         return redirect("/register")
@@ -418,20 +369,18 @@ def send_message(friend_code):
             )
             VALUES(?,?,?)
             """,
-            (
-                my_code,
-                friend_code,
-                text
-            )
+            (my_code, friend_code, text)
         )
 
         conn.commit()
         conn.close()
 
-    return redirect(
-        f"/chat/{friend_code}"
-    )
+    return redirect(f"/chat/{friend_code}")
 
+
+# ==========================================
+# AJAX MESSAGES
+# ==========================================
 
 @app.route("/messages/<friend_code>")
 def get_messages(friend_code):
@@ -439,12 +388,11 @@ def get_messages(friend_code):
         return jsonify([])
 
     my_code = session["hx_code"]
-
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
 
     cur.execute("""
-        SELECT sender_code,message
+        SELECT sender_code, message
         FROM messages
         WHERE
         (sender_code=? AND receiver_code=?)
@@ -515,8 +463,4 @@ def logout():
 
 
 if __name__ == "__main__":
-    app.run(
-        debug=True,
-        host="127.0.0.1",
-        port=5000
-    )
+    app.run(debug=True, host="127.0.0.1", port=5000)
