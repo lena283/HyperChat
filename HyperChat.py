@@ -3,12 +3,9 @@ import sqlite3
 import random
 import string
 import os
-from datetime import timedelta
-from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.secret_key = "hyperchat_secret_key"
-app.permanent_session_lifetime = timedelta(days=30)
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DB_NAME = os.path.join(BASE_DIR, "hyperchat.db")
@@ -25,8 +22,7 @@ def init_db():
     cur.execute("""
     CREATE TABLE IF NOT EXISTS users(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nickname TEXT UNIQUE,
-        password_hash TEXT,
+        nickname TEXT,
         hx_code TEXT UNIQUE,
         bio TEXT DEFAULT ''
     )
@@ -50,21 +46,6 @@ def init_db():
     )
     """)
 
-    cur.execute("PRAGMA table_info(users)")
-    columns = [row[1] for row in cur.fetchall()]
-
-    if "password_hash" not in columns:
-        cur.execute("ALTER TABLE users ADD COLUMN password_hash TEXT")
-
-    if "nickname" not in columns:
-        cur.execute("ALTER TABLE users ADD COLUMN nickname TEXT")
-
-    if "hx_code" not in columns:
-        cur.execute("ALTER TABLE users ADD COLUMN hx_code TEXT")
-
-    if "bio" not in columns:
-        cur.execute("ALTER TABLE users ADD COLUMN bio TEXT DEFAULT ''")
-
     conn.commit()
     conn.close()
 
@@ -79,11 +60,13 @@ init_db()
 def generate_hx():
     while True:
         hx = "HX-" + "".join(random.choices(string.digits, k=6))
+
         conn = sqlite3.connect(DB_NAME)
         cur = conn.cursor()
         cur.execute("SELECT id FROM users WHERE hx_code=?", (hx,))
         exists = cur.fetchone()
         conn.close()
+
         if not exists:
             return hx
 
@@ -91,16 +74,7 @@ def generate_hx():
 def get_user(hx_code):
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
-    cur.execute("SELECT nickname, hx_code, bio FROM users WHERE hx_code=?", (hx_code,))
-    user = cur.fetchone()
-    conn.close()
-    return user
-
-
-def get_user_by_nickname(nickname):
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-    cur.execute("SELECT nickname, password_hash, hx_code, bio FROM users WHERE nickname=?", (nickname,))
+    cur.execute("SELECT nickname,hx_code,bio FROM users WHERE hx_code=?", (hx_code,))
     user = cur.fetchone()
     conn.close()
     return user
@@ -113,7 +87,7 @@ def get_user_by_nickname(nickname):
 @app.route("/")
 def home():
     if "hx_code" not in session:
-        return redirect("/login")
+        return redirect("/register")
     return redirect("/profile")
 
 
@@ -124,74 +98,28 @@ def home():
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
-        nickname = request.form["nickname"].strip()
-        password = request.form["password"].strip()
-
-        if not nickname or not password:
-            return render_template("register.html", error="Nickname and password are required")
+        nickname = request.form["nickname"]
+        hx_code = generate_hx()
 
         conn = sqlite3.connect(DB_NAME)
         cur = conn.cursor()
-
-        cur.execute("SELECT id FROM users WHERE nickname=?", (nickname,))
-        exists = cur.fetchone()
-        if exists:
-            conn.close()
-            return render_template("register.html", error="Nickname already exists")
-
-        hx_code = generate_hx()
-        password_hash = generate_password_hash(password)
-
         cur.execute(
             """
             INSERT INTO users(
                 nickname,
-                password_hash,
                 hx_code
             )
-            VALUES(?,?,?)
+            VALUES(?,?)
             """,
-            (nickname, password_hash, hx_code)
+            (nickname, hx_code)
         )
-
         conn.commit()
         conn.close()
 
-        session.permanent = True
         session["hx_code"] = hx_code
         return redirect("/profile")
 
     return render_template("register.html")
-
-
-# ==========================================
-# LOGIN
-# ==========================================
-
-@app.route("/login", methods=["GET", "POST"])
-def login():
-    if request.method == "POST":
-        nickname = request.form["nickname"].strip()
-        password = request.form["password"].strip()
-
-        user = get_user_by_nickname(nickname)
-
-        if not user:
-            return render_template("login.html", error="Wrong nickname or password")
-
-        db_nickname, db_password_hash, db_hx_code, db_bio = user
-
-        if not db_password_hash or not check_password_hash(db_password_hash, password):
-            return render_template("login.html", error="Wrong nickname or password")
-
-        session.permanent = True
-        session["hx_code"] = db_hx_code
-        return redirect("/profile")
-
-    if "hx_code" in session:
-        return redirect("/profile")
-
-    return render_template("login.html")
 
 
 # ==========================================
@@ -201,7 +129,7 @@ def login():
 @app.route("/profile", methods=["GET", "POST"])
 def profile():
     if "hx_code" not in session:
-        return redirect("/login")
+        return redirect("/register")
 
     hx_code = session["hx_code"]
     conn = sqlite3.connect(DB_NAME)
@@ -242,7 +170,7 @@ def profile():
 @app.route("/add_friend", methods=["POST"])
 def add_friend():
     if "hx_code" not in session:
-        return redirect("/login")
+        return redirect("/register")
 
     owner = session["hx_code"]
     friend_code = request.form.get("friend_code", "").strip().upper()
@@ -295,7 +223,7 @@ def add_friend():
 @app.route("/friends")
 def friends():
     if "hx_code" not in session:
-        return redirect("/login")
+        return redirect("/register")
 
     hx_code = session["hx_code"]
     conn = sqlite3.connect(DB_NAME)
@@ -338,7 +266,7 @@ def friends():
 @app.route("/delete_friend/<friend_code>")
 def delete_friend(friend_code):
     if "hx_code" not in session:
-        return redirect("/login")
+        return redirect("/register")
 
     owner = session["hx_code"]
     conn = sqlite3.connect(DB_NAME)
@@ -365,7 +293,7 @@ def delete_friend(friend_code):
 @app.route("/chat/<friend_code>")
 def chat(friend_code):
     if "hx_code" not in session:
-        return redirect("/login")
+        return redirect("/register")
 
     my_code = session["hx_code"]
     conn = sqlite3.connect(DB_NAME)
@@ -416,7 +344,7 @@ def chat(friend_code):
 @app.route("/send_message/<friend_code>", methods=["POST"])
 def send_message(friend_code):
     if "hx_code" not in session:
-        return redirect("/login")
+        return redirect("/register")
 
     my_code = session["hx_code"]
     text = request.form["message"].strip()
@@ -457,7 +385,7 @@ def get_messages(friend_code):
     cur = conn.cursor()
 
     cur.execute("""
-        SELECT sender_code, message, created
+        SELECT sender_code, message
         FROM messages
         WHERE
         (sender_code=? AND receiver_code=?)
@@ -478,8 +406,7 @@ def get_messages(friend_code):
     return jsonify([
         {
             "sender": row[0],
-            "text": row[1],
-            "created": row[2]
+            "text": row[1]
         }
         for row in rows
     ])
@@ -492,11 +419,8 @@ def send_ajax():
 
     data = request.get_json()
     friend_code = data["friend"]
-    message = data["message"].strip()
+    message = data["message"]
     my_code = session["hx_code"]
-
-    if not message:
-        return jsonify({"ok": False})
 
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
@@ -528,7 +452,7 @@ def send_ajax():
 @app.route("/logout")
 def logout():
     session.clear()
-    return redirect("/login")
+    return redirect("/register")
 
 
 if __name__ == "__main__":

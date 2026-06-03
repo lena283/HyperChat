@@ -1,65 +1,23 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <title>Register</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #111;
-            color: #fff;
-            margin: 0;
-            padding: 20px;
-        }
-        .box {
-            max-width: 420px;
-            margin: 80px auto;
-            background: #1b1b1b;
-            padding: 20px;
-            border-radius: 12px;
-        }
-        input, button {
-            width: 100%;
-            box-sizing: border-box;
-            padding: 12px;
-            border: none;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            font-size: 16px;
-        }
-        button {
-            background: #4a7dff;
-            color: white;
-            cursor: pointer;
-        }
-        a {
-            color: #4a7dff;
-            text-decoration: none;
-        }
-        .error {
-            background: #5a1e1e;
-            color: #ffd6d6;
-            padding: 10px;
-            border-radius: 8px;
-            margin-bottom: 10px;
-        }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HyperChat — Регистрация</title>
+  <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-<div class="box">
-    <h1>Register</h1>
+  <div class="container">
+    <h2>HyperChat регистрация</h2>
 
     {% if error %}
-        <div class="error">{{ error }}</div>
+      <div class="error">{{ error }}</div>
     {% endif %}
 
-    <form method="POST">
-        <input type="text" name="nickname" placeholder="Nickname" required>
-        <input type="password" name="password" placeholder="Password" required>
-        <button type="submit">Create account</button>
+    <form method="post">
+      <input name="nickname" placeholder="Никнейм" required autofocus>
+      <button type="submit">Создать аккаунт</button>
     </form>
-
-    <p>Уже есть аккаунт? <a href="/login">Login</a></p>
-</div>
+  </div>
 </body>
 </html>
