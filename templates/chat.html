@@ -1,54 +1,149 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="utf-8">
-<title>HyperChat</title>
-<link rel="stylesheet" href="/static/style.css">
+    <meta charset="UTF-8">
+    <title>Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #111;
+            color: #fff;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .box {
+            max-width: 800px;
+            margin: auto;
+            background: #1b1b1b;
+            padding: 20px;
+            border-radius: 12px;
+        }
+
+        .messages {
+            height: 420px;
+            overflow-y: auto;
+            border: 1px solid #333;
+            background: #141414;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .msg {
+            margin-bottom: 10px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+
+        .me {
+            background: #4a7dff;
+            margin-left: auto;
+            text-align: right;
+        }
+
+        .them {
+            background: #333;
+            margin-right: auto;
+        }
+
+        .meta {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-bottom: 4px;
+        }
+
+        form {
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            border: none;
+            outline: none;
+            font-size: 16px;
+        }
+
+        button, a.btn {
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: none;
+            background: #4a7dff;
+            color: white;
+            text-decoration: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+    </style>
 </head>
-
 <body>
+<div class="box">
+    <div class="topbar">
+        <h1>Chat with {{ friend_name }}</h1>
+        <a class="btn" href="/friends">Back</a>
+    </div>
 
-<div class="container">
+    <div id="messages" class="messages">
+        {% for msg in messages %}
+            <div class="msg {% if msg[0] == my_code %}me{% else %}them{% endif %}">
+                <div class="meta">
+                    {% if msg[0] == my_code %}
+                        You
+                    {% else %}
+                        Friend
+                    {% endif %}
+                    • {{ msg[3] }}
+                </div>
+                <div>{{ msg[2] }}</div>
+            </div>
+        {% endfor %}
+    </div>
 
-<nav>
-<a href="/profile">Профиль</a>
-<a href="/friends">Друзья</a>
-<a href="/logout">Выйти</a>
-</nav>
-
-<h2>Чат с {{ friend_name }}</h2>
-
-<div class="chat-box">
-
-{% for msg in messages %}
-
-<div class="{% if msg[0] == my_code %}my-msg{% else %}friend-msg{% endif %}">
-
-<b>{{ msg[0] }}</b><br>
-
-{{ msg[2] }}
-
+    <form method="POST" action="/send_message/{{ friend_code }}">
+        <input type="text" name="message" placeholder="Type message..." autocomplete="off">
+        <button type="submit">Send</button>
+    </form>
 </div>
 
-{% endfor %}
+<script>
+    const friendCode = "{{ friend_code }}";
+    const myCode = "{{ my_code }}";
 
-</div>
+    async function loadMessages() {
+        const res = await fetch(`/messages/${friendCode}`);
+        const data = await res.json();
 
-<form method="post"
-action="/send_message/{{ friend_code }}">
+        const box = document.getElementById("messages");
+        box.innerHTML = "";
 
-<input
-name="message"
-placeholder="Введите сообщение..."
-required>
+        data.forEach(msg => {
+            const div = document.createElement("div");
+            div.className = "msg " + (msg.sender === myCode ? "me" : "them");
+            div.innerHTML = `
+                <div class="meta">${msg.sender === myCode ? "You" : "Friend"}</div>
+                <div>${msg.text}</div>
+            `;
+            box.appendChild(div);
+        });
 
-<button type="submit">
-Отправить
-</button>
+        box.scrollTop = box.scrollHeight;
+    }
 
-</form>
-
-</div>
-
+    setInterval(loadMessages, 2000);
+</script>
 </body>
 </html>

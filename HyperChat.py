@@ -7,7 +7,8 @@ import os
 app = Flask(__name__)
 app.secret_key = "hyperchat_secret_key"
 
-DB_NAME = "hyperchat.db"
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+DB_NAME = os.path.join(BASE_DIR, "hyperchat.db")
 
 
 # ==========================================
@@ -73,10 +74,7 @@ def generate_hx():
 def get_user(hx_code):
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
-    cur.execute(
-        "SELECT nickname, hx_code, bio FROM users WHERE hx_code=?",
-        (hx_code,)
-    )
+    cur.execute("SELECT nickname,hx_code,bio FROM users WHERE hx_code=?", (hx_code,))
     user = cur.fetchone()
     conn.close()
     return user
@@ -183,10 +181,7 @@ def add_friend():
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
 
-    cur.execute(
-        "SELECT hx_code FROM users WHERE hx_code=?",
-        (friend_code,)
-    )
+    cur.execute("SELECT hx_code FROM users WHERE hx_code=?", (friend_code,))
     user = cur.fetchone()
 
     if not user:
@@ -212,7 +207,6 @@ def add_friend():
             """,
             (owner, friend_code)
         )
-
         cur.execute(
             """
             INSERT INTO friends(owner_code, friend_code)
@@ -220,7 +214,6 @@ def add_friend():
             """,
             (friend_code, owner)
         )
-
         conn.commit()
 
     conn.close()

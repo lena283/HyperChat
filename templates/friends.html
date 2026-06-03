@@ -1,212 +1,99 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>HyperChat — Друзья</title>
+    <meta charset="UTF-8">
+    <title>Friends</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #111;
+            color: #fff;
+            margin: 0;
+            padding: 20px;
+        }
 
-    <link rel="stylesheet" href="/static/style.css">
+        .box {
+            max-width: 700px;
+            margin: auto;
+            background: #1b1b1b;
+            padding: 20px;
+            border-radius: 12px;
+        }
+
+        input, button {
+            padding: 10px;
+            border-radius: 8px;
+            border: none;
+            outline: none;
+            font-size: 16px;
+        }
+
+        input {
+            width: 100%;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+
+        button, a.btn {
+            display: inline-block;
+            background: #4a7dff;
+            color: white;
+            text-decoration: none;
+            cursor: pointer;
+            margin-top: 5px;
+        }
+
+        .friend {
+            background: #2a2a2a;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+
+        .actions {
+            margin-top: 8px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        a.btn.red {
+            background: #d94b4b;
+        }
+
+        a.btn.gray {
+            background: #555;
+        }
+    </style>
 </head>
 <body>
+<div class="box">
+    <h1>Friends</h1>
 
-<div class="container">
-
-    <nav>
-        <a href="/profile">Профиль</a>
-        <a href="/friends">Друзья</a>
-        <a href="/logout">Выйти</a>
-    </nav>
-
-    <h2>Друзья</h2>
-
-    <form method="post" action="/add_friend">
-
-        <input
-            type="text"
-            name="friend_code"
-            placeholder="HX-123456"
-            required>
-
-        <button type="submit">
-            Добавить друга
-        </button>
-
+    <form method="POST" action="/add_friend">
+        <input type="text" name="friend_code" placeholder="Enter friend HX code">
+        <button type="submit">Add friend</button>
     </form>
 
-    {% if not friends %}
-
-        <p style="text-align:center;margin-top:20px;">
-            У вас пока нет друзей.
-        </p>
-
-    {% endif %}
+    <hr>
 
     {% if friends %}
+        {% for friend in friends %}
+            <div class="friend">
+                <strong>{{ friend[0] }}</strong><br>
+                <span>{{ friend[1] }}</span>
 
-    <div class="chat-layout">
-
-        <!-- Левая колонка -->
-
-        <div class="friends-panel">
-
-            <h3>Список друзей</h3>
-
-            {% for f in friends %}
-
-            <div
-                class="friend-card"
-                onclick="openChat('{{f[1]}}','{{f[0]}}')">
-
-                <b>{{f[0]}}</b>
-                <br>
-
-                <small>{{f[1]}}</small>
-
+                <div class="actions">
+                    <a class="btn" href="/chat/{{ friend[1] }}">Open chat</a>
+                    <a class="btn red" href="/delete_friend/{{ friend[1] }}">Delete</a>
+                </div>
             </div>
-
-            {% endfor %}
-
-        </div>
-
-        <!-- Правая колонка -->
-
-        <div class="chat-panel">
-
-            <h2 id="chatTitle">
-                Выберите друга
-            </h2>
-
-            <div id="messages">
-
-            </div>
-
-            <form id="sendForm">
-
-                <input
-                    type="text"
-                    id="messageInput"
-                    placeholder="Введите сообщение">
-
-                <button type="submit">
-                    Отправить
-                </button>
-
-            </form>
-
-        </div>
-
-    </div>
-
+        {% endfor %}
+    {% else %}
+        <p>No friends yet.</p>
     {% endif %}
 
+    <p><a class="btn gray" href="/profile">Back to profile</a></p>
 </div>
-
-<script>
-
-let currentFriend = "";
-
-function openChat(code,name){
-
-    currentFriend = code;
-
-    document.getElementById(
-        "chatTitle"
-    ).innerText =
-        "Чат с " + name;
-
-    loadMessages();
-}
-
-function loadMessages(){
-
-    if(currentFriend === "")
-        return;
-
-    fetch(
-        "/messages/" + currentFriend
-    )
-
-    .then(response => response.json())
-
-    .then(data => {
-
-        let html = "";
-
-        data.forEach(msg => {
-
-            html += `
-                <div class="msg">
-
-                    <b>${msg.sender}</b>
-
-                    <br>
-
-                    ${msg.text}
-
-                </div>
-            `;
-        });
-
-        document.getElementById(
-            "messages"
-        ).innerHTML = html;
-    });
-}
-
-document.getElementById(
-    "sendForm"
-).addEventListener(
-    "submit",
-    function(e){
-
-        e.preventDefault();
-
-        if(currentFriend === "")
-            return;
-
-        fetch(
-            "/send_ajax",
-            {
-                method: "POST",
-
-                headers: {
-                    "Content-Type":
-                    "application/json"
-                },
-
-                body: JSON.stringify({
-
-                    friend:
-                    currentFriend,
-
-                    message:
-                    document.getElementById(
-                        "messageInput"
-                    ).value
-                })
-            }
-        )
-
-        .then(response => response.json())
-
-        .then(data => {
-
-            document.getElementById(
-                "messageInput"
-            ).value = "";
-
-            loadMessages();
-        });
-
-    }
-);
-
-setInterval(
-    loadMessages,
-    2000
-);
-
-</script>
-
 </body>
 </html>
