@@ -1,135 +1,54 @@
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>HyperChat — Чат</title>
-  <link rel="stylesheet" href="/static/style.css">
+<meta charset="utf-8">
+<title>HyperChat</title>
+<link rel="stylesheet" href="/static/style.css">
 </head>
+
 <body>
-  <div class="container">
-    <nav>
-      <a href="/profile">Профиль</a>
-      <a href="/friends">Друзья</a>
-      <a href="/logout">Выйти</a>
-    </nav>
 
-    <h2>Чат с {{ friend[0] }}</h2>
+<div class="container">
 
-    <div id="messages">
-      {% for m in messages %}
-        <p><b>{{ m[0] }}</b>: {{ m[2] }} <small style="color:#888;">{{ m[3] }}</small></p>
-      {% endfor %}
-    </div>
+<nav>
+<a href="/profile">Профиль</a>
+<a href="/friends">Друзья</a>
+<a href="/logout">Выйти</a>
+</nav>
 
-    <div>
-      <input id="message" placeholder="Сообщение">
-      <button onclick="sendMsg()">Отправить</button>
-    </div>
+<h2>Чат с {{ friend_name }}</h2>
 
-    <div style="margin-top: 15px;">
-      <button onclick="startCall()">Аудиозвонок</button>
-      <button onclick="hangup()">Завершить</button>
-    </div>
+<div class="chat-box">
 
-    <audio id="remoteAudio" autoplay></audio>
+{% for msg in messages %}
 
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script>
-      const socket = io();
-      const friendCode = "{{ friend_code }}";
-      const myCode = "{{ current_user.id }}";
-      const box = document.getElementById("messages");
-      const pcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
-      let pc = null;
-      let localStream = null;
+<div class="{% if msg[0] == my_code %}my-msg{% else %}friend-msg{% endif %}">
 
-      socket.emit("join_chat", { friend_code: friendCode });
+<b>{{ msg[0] }}</b><br>
 
-      socket.on("new_message", (data) => {
-        if (
-          (data.sender_code === myCode && data.receiver_code === friendCode) ||
-          (data.sender_code === friendCode && data.receiver_code === myCode)
-        ) {
-          const p = document.createElement("p");
-          p.innerHTML = `<b>${data.sender_code}</b>: ${data.message}`;
-          box.appendChild(p);
-          box.scrollTop = box.scrollHeight;
-        }
-      });
+{{ msg[2] }}
 
-      socket.on("webrtc_signal", async (data) => {
-        if (!pc) await prepareCall(false);
-        const payload = data.payload;
+</div>
 
-        if (payload.sdp) {
-          await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-          if (payload.sdp.type === "offer") {
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            socket.emit("webrtc_signal", {
-              target: friendCode,
-              payload: { sdp: pc.localDescription }
-            });
-          }
-        } else if (payload.ice) {
-          try { await pc.addIceCandidate(payload.ice); } catch (e) {}
-        }
-      });
+{% endfor %}
 
-      async function sendMsg() {
-        const input = document.getElementById("message");
-        const message = input.value.trim();
-        if (!message) return;
-        socket.emit("send_message", {
-          receiver_code: friendCode,
-          message: message
-        });
-        input.value = "";
-      }
+</div>
 
-      async function prepareCall(init) {
-        pc = new RTCPeerConnection(pcConfig);
-        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-        pc.ontrack = (e) => {
-          document.getElementById("remoteAudio").srcObject = e.streams[0];
-        };
-        pc.onicecandidate = (e) => {
-          if (e.candidate) {
-            socket.emit("webrtc_signal", {
-              target: friendCode,
-              payload: { ice: e.candidate }
-            });
-          }
-        };
-        if (init) {
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-          socket.emit("webrtc_signal", {
-            target: friendCode,
-            payload: { sdp: pc.localDescription }
-          });
-        }
-      }
+<form method="post"
+action="/send_message/{{ friend_code }}">
 
-      async function startCall() {
-        if (!pc) {
-          await prepareCall(true);
-        }
-      }
+<input
+name="message"
+placeholder="Введите сообщение..."
+required>
 
-      function hangup() {
-        if (pc) {
-          pc.close();
-          pc = null;
-        }
-        if (localStream) {
-          localStream.getTracks().forEach(t => t.stop());
-          localStream = null;
-        }
-      }
-    </script>
-  </div>
+<button type="submit">
+Отправить
+</button>
+
+</form>
+
+</div>
+
 </body>
 </html>

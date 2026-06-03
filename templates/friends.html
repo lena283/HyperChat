@@ -1,42 +1,212 @@
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>HyperChat — Друзья</title>
-  <link rel="stylesheet" href="/static/style.css">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>HyperChat — Друзья</title>
+
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <div class="container">
+
+<div class="container">
+
     <nav>
-      <a href="/profile">Профиль</a>
-      <a href="/friends">Друзья</a>
-      <a href="/logout">Выйти</a>
+        <a href="/profile">Профиль</a>
+        <a href="/friends">Друзья</a>
+        <a href="/logout">Выйти</a>
     </nav>
 
     <h2>Друзья</h2>
 
-    {% if not friends %}
-      <p style="text-align:center;">У вас пока нет друзей. Добавьте друга по его коду HX-......</p>
-    {% endif %}
-
     <form method="post" action="/add_friend">
-      <input name="friend_code" placeholder="HX-123456" required>
-      <button type="submit">Добавить</button>
+
+        <input
+            type="text"
+            name="friend_code"
+            placeholder="HX-123456"
+            required>
+
+        <button type="submit">
+            Добавить друга
+        </button>
+
     </form>
 
-    {% if friends %}
-      <ul>
-        {% for f in friends %}
-          <li>
-            <span>{{ f[0] }} ({{ f[1] }})</span>
-            <span>
-              <a href="/chat/{{ f[1] }}">Чат</a>
-            </span>
-          </li>
-        {% endfor %}
-      </ul>
+    {% if not friends %}
+
+        <p style="text-align:center;margin-top:20px;">
+            У вас пока нет друзей.
+        </p>
+
     {% endif %}
-  </div>
+
+    {% if friends %}
+
+    <div class="chat-layout">
+
+        <!-- Левая колонка -->
+
+        <div class="friends-panel">
+
+            <h3>Список друзей</h3>
+
+            {% for f in friends %}
+
+            <div
+                class="friend-card"
+                onclick="openChat('{{f[1]}}','{{f[0]}}')">
+
+                <b>{{f[0]}}</b>
+                <br>
+
+                <small>{{f[1]}}</small>
+
+            </div>
+
+            {% endfor %}
+
+        </div>
+
+        <!-- Правая колонка -->
+
+        <div class="chat-panel">
+
+            <h2 id="chatTitle">
+                Выберите друга
+            </h2>
+
+            <div id="messages">
+
+            </div>
+
+            <form id="sendForm">
+
+                <input
+                    type="text"
+                    id="messageInput"
+                    placeholder="Введите сообщение">
+
+                <button type="submit">
+                    Отправить
+                </button>
+
+            </form>
+
+        </div>
+
+    </div>
+
+    {% endif %}
+
+</div>
+
+<script>
+
+let currentFriend = "";
+
+function openChat(code,name){
+
+    currentFriend = code;
+
+    document.getElementById(
+        "chatTitle"
+    ).innerText =
+        "Чат с " + name;
+
+    loadMessages();
+}
+
+function loadMessages(){
+
+    if(currentFriend === "")
+        return;
+
+    fetch(
+        "/messages/" + currentFriend
+    )
+
+    .then(response => response.json())
+
+    .then(data => {
+
+        let html = "";
+
+        data.forEach(msg => {
+
+            html += `
+                <div class="msg">
+
+                    <b>${msg.sender}</b>
+
+                    <br>
+
+                    ${msg.text}
+
+                </div>
+            `;
+        });
+
+        document.getElementById(
+            "messages"
+        ).innerHTML = html;
+    });
+}
+
+document.getElementById(
+    "sendForm"
+).addEventListener(
+    "submit",
+    function(e){
+
+        e.preventDefault();
+
+        if(currentFriend === "")
+            return;
+
+        fetch(
+            "/send_ajax",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                    "application/json"
+                },
+
+                body: JSON.stringify({
+
+                    friend:
+                    currentFriend,
+
+                    message:
+                    document.getElementById(
+                        "messageInput"
+                    ).value
+                })
+            }
+        )
+
+        .then(response => response.json())
+
+        .then(data => {
+
+            document.getElementById(
+                "messageInput"
+            ).value = "";
+
+            loadMessages();
+        });
+
+    }
+);
+
+setInterval(
+    loadMessages,
+    2000
+);
+
+</script>
+
 </body>
 </html>

@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, session
+from flask import Flask, render_template, request, redirect, session, jsonify
 import sqlite3
 import random
 import string
@@ -28,6 +28,16 @@ def init_db():
     """)
 
     cur.execute("""
+    CREATE TABLE IF NOT EXISTS messages(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sender_code TEXT,
+        receiver_code TEXT,
+        message TEXT,
+        created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    cur.execute("""
     CREATE TABLE IF NOT EXISTS friends(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         owner_code TEXT,
@@ -47,9 +57,27 @@ init_db()
 # ==========================================
 
 def generate_hx():
-    return "HX-" + "".join(
-        random.choices(string.digits, k=6)
-    )
+
+    while True:
+
+        hx = "HX-" + "".join(
+            random.choices(string.digits, k=6)
+        )
+
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+
+        cur.execute(
+            "SELECT id FROM users WHERE hx_code=?",
+            (hx,)
+        )
+
+        exists = cur.fetchone()
+
+        conn.close()
+
+        if not exists:
+            return hx
 
 
 def get_user(hx_code):
@@ -179,6 +207,7 @@ def profile():
 # FRIENDS
 # ==========================================
 
+@app.route("/add_friend", methods=["POST"])
 @app.route("/friends")
 def friends():
 
@@ -227,58 +256,6 @@ def friends():
         friends=friend_list
     )
 
-
-# ==========================================
-# ADD FRIEND
-# ==========================================
-
-@app.route("/add_friend", methods=["POST"])
-def add_friend():
-
-    if "hx_code" not in session:
-        return redirect("/register")
-
-    owner = session["hx_code"]
-
-    friend_code = request.form["friend_code"]
-
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-
-    cur.execute(
-        """
-        SELECT id
-        FROM users
-        WHERE hx_code=?
-        """,
-        (friend_code,)
-    )
-
-    user = cur.fetchone()
-
-    if user:
-
-        cur.execute(
-            """
-            INSERT INTO friends(
-                owner_code,
-                friend_code
-            )
-            VALUES(?,?)
-            """,
-            (
-                owner,
-                friend_code
-            )
-        )
-
-        conn.commit()
-
-    conn.close()
-
-    return redirect("/friends")
-
-
 # ==========================================
 # DELETE FRIEND
 # ==========================================
@@ -315,6 +292,105 @@ def delete_friend(friend_code):
 # ==========================================
 # LOGOUT
 # ==========================================
+@app.route("/chat/<friend_code>")
+def chat(friend_code):
+
+    if "hx_code" not in session:
+        return redirect("/register")
+
+    my_code = session["hx_code"]
+
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+
+    cur.execute(
+        """
+        SELECT nickname
+        FROM users
+        WHERE hx_code=?
+        """,
+        (friend_code,)
+    )
+
+    friend = cur.fetchone()
+
+    if not friend:
+        conn.close()
+        return redirect("/friends")
+
+    cur.execute(
+        """
+        SELECT sender_code,
+               receiver_code,
+               message,
+               created
+        FROM messages
+        WHERE
+        (sender_code=? AND receiver_code=?)
+        OR
+        (sender_code=? AND receiver_code=?)
+        ORDER BY id
+        """,
+        (
+            my_code,
+            friend_code,
+            friend_code,
+            my_code
+        )
+    )
+
+    messages = cur.fetchall()
+
+    conn.close()
+
+    return render_template(
+        "chat.html",
+        friend_name=friend[0],
+        friend_code=friend_code,
+        messages=messages,
+        my_code=my_code
+    )
+
+@app.route(
+    "/send_message/<friend_code>",
+    methods=["POST"]
+)
+def send_message(friend_code):
+
+    if "hx_code" not in session:
+        return redirect("/register")
+
+    my_code = session["hx_code"]
+
+    text = request.form["message"].strip()
+
+    if text:
+
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+
+        cur.execute(
+            """
+            INSERT INTO messages(
+                sender_code,
+                receiver_code,
+                message
+            )
+            VALUES(?,?,?)
+            """,
+            (
+                my_code,
+                friend_code,
+                text
+            )
+        )
+
+        conn.commit()
+        conn.close()
+
+    return redirect(
+        f"/chat/{friend_code}"
+    )
 
 @app.route("/logout")
 def logout():
@@ -329,6 +405,81 @@ def logout():
 # ==========================================
 
 if __name__ == "__main__":
+
+    @app.route("/messages/<friend_code>")
+    def get_messages(friend_code):
+
+        if "hx_code" not in session:
+            return jsonify([])
+
+        my_code = session["hx_code"]
+
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+
+        cur.execute("""
+            SELECT sender_code,message
+            FROM messages
+            WHERE
+            (sender_code=? AND receiver_code=?)
+            OR
+            (sender_code=? AND receiver_code=?)
+            ORDER BY id
+        """,
+                    (
+                        my_code,
+                        friend_code,
+                        friend_code,
+                        my_code
+                    ))
+
+        rows = cur.fetchall()
+
+        conn.close()
+
+        return jsonify([
+            {
+                "sender": row[0],
+                "text": row[1]
+            }
+            for row in rows
+        ])
+
+
+    @app.route("/send_ajax", methods=["POST"])
+    def send_ajax():
+
+        if "hx_code" not in session:
+            return jsonify({"ok": False})
+
+        data = request.get_json()
+
+        friend_code = data["friend"]
+        message = data["message"]
+
+        my_code = session["hx_code"]
+
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+
+        cur.execute("""
+            INSERT INTO messages(
+                sender_code,
+                receiver_code,
+                message
+            )
+            VALUES(?,?,?)
+        """,
+                    (
+                        my_code,
+                        friend_code,
+                        message
+                    ))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({"ok": True})
 
     app.run(
         debug=True,
