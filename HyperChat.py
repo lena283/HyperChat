@@ -57,12 +57,8 @@ init_db()
 # ==========================================
 
 def generate_hx():
-
     while True:
-
-        hx = "HX-" + "".join(
-            random.choices(string.digits, k=6)
-        )
+        hx = "HX-" + "".join(random.choices(string.digits, k=6))
 
         conn = sqlite3.connect(DB_NAME)
         cur = conn.cursor()
@@ -73,7 +69,6 @@ def generate_hx():
         )
 
         exists = cur.fetchone()
-
         conn.close()
 
         if not exists:
@@ -90,7 +85,6 @@ def get_user(hx_code):
     )
 
     user = cur.fetchone()
-
     conn.close()
 
     return user
@@ -102,10 +96,8 @@ def get_user(hx_code):
 
 @app.route("/")
 def home():
-
     if "hx_code" not in session:
         return redirect("/register")
-
     return redirect("/profile")
 
 
@@ -115,11 +107,8 @@ def home():
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
-
     if request.method == "POST":
-
         nickname = request.form["nickname"]
-
         hx_code = generate_hx()
 
         conn = sqlite3.connect(DB_NAME)
@@ -143,7 +132,6 @@ def register():
         conn.close()
 
         session["hx_code"] = hx_code
-
         return redirect("/profile")
 
     return render_template("register.html")
@@ -155,17 +143,14 @@ def register():
 
 @app.route("/profile", methods=["GET", "POST"])
 def profile():
-
     if "hx_code" not in session:
         return redirect("/register")
 
     hx_code = session["hx_code"]
-
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
 
     if request.method == "POST":
-
         bio = request.form["bio"]
 
         cur.execute(
@@ -179,7 +164,6 @@ def profile():
                 hx_code
             )
         )
-
         conn.commit()
 
     cur.execute(
@@ -194,7 +178,6 @@ def profile():
     )
 
     user = cur.fetchone()
-
     conn.close()
 
     return render_template(
@@ -208,9 +191,71 @@ def profile():
 # ==========================================
 
 @app.route("/add_friend", methods=["POST"])
+def add_friend():
+    if "hx_code" not in session:
+        return redirect("/register")
+
+    owner = session["hx_code"]
+
+    friend_code = request.form.get(
+        "friend_code",
+        ""
+    ).strip().upper()
+
+    if friend_code == owner:
+        return redirect("/friends")
+
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+
+    cur.execute(
+        "SELECT hx_code FROM users WHERE hx_code=?",
+        (friend_code,)
+    )
+
+    user = cur.fetchone()
+
+    if not user:
+        conn.close()
+        return redirect("/friends")
+
+    cur.execute(
+        """
+        SELECT id
+        FROM friends
+        WHERE owner_code=?
+        AND friend_code=?
+        """,
+        (owner, friend_code)
+    )
+
+    exists = cur.fetchone()
+
+    if not exists:
+        cur.execute(
+            """
+            INSERT INTO friends(owner_code, friend_code)
+            VALUES(?,?)
+            """,
+            (owner, friend_code)
+        )
+
+        cur.execute(
+            """
+            INSERT INTO friends(owner_code, friend_code)
+            VALUES(?,?)
+            """,
+            (friend_code, owner)
+        )
+
+        conn.commit()
+
+    conn.close()
+    return redirect("/friends")
+
+
 @app.route("/friends")
 def friends():
-
     if "hx_code" not in session:
         return redirect("/register")
 
@@ -229,11 +274,9 @@ def friends():
     )
 
     rows = cur.fetchall()
-
     friend_list = []
 
     for row in rows:
-
         cur.execute(
             """
             SELECT nickname,
@@ -256,13 +299,13 @@ def friends():
         friends=friend_list
     )
 
+
 # ==========================================
 # DELETE FRIEND
 # ==========================================
 
 @app.route("/delete_friend/<friend_code>")
 def delete_friend(friend_code):
-
     if "hx_code" not in session:
         return redirect("/register")
 
@@ -290,11 +333,11 @@ def delete_friend(friend_code):
 
 
 # ==========================================
-# LOGOUT
+# CHAT
 # ==========================================
+
 @app.route("/chat/<friend_code>")
 def chat(friend_code):
-
     if "hx_code" not in session:
         return redirect("/register")
 
@@ -340,7 +383,6 @@ def chat(friend_code):
     )
 
     messages = cur.fetchall()
-
     conn.close()
 
     return render_template(
@@ -351,21 +393,19 @@ def chat(friend_code):
         my_code=my_code
     )
 
+
 @app.route(
     "/send_message/<friend_code>",
     methods=["POST"]
 )
 def send_message(friend_code):
-
     if "hx_code" not in session:
         return redirect("/register")
 
     my_code = session["hx_code"]
-
     text = request.form["message"].strip()
 
     if text:
-
         conn = sqlite3.connect(DB_NAME)
         cur = conn.cursor()
 
@@ -392,95 +432,89 @@ def send_message(friend_code):
         f"/chat/{friend_code}"
     )
 
+
+@app.route("/messages/<friend_code>")
+def get_messages(friend_code):
+    if "hx_code" not in session:
+        return jsonify([])
+
+    my_code = session["hx_code"]
+
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT sender_code,message
+        FROM messages
+        WHERE
+        (sender_code=? AND receiver_code=?)
+        OR
+        (sender_code=? AND receiver_code=?)
+        ORDER BY id
+    """,
+    (
+        my_code,
+        friend_code,
+        friend_code,
+        my_code
+    ))
+
+    rows = cur.fetchall()
+    conn.close()
+
+    return jsonify([
+        {
+            "sender": row[0],
+            "text": row[1]
+        }
+        for row in rows
+    ])
+
+
+@app.route("/send_ajax", methods=["POST"])
+def send_ajax():
+    if "hx_code" not in session:
+        return jsonify({"ok": False})
+
+    data = request.get_json()
+    friend_code = data["friend"]
+    message = data["message"]
+    my_code = session["hx_code"]
+
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+
+    cur.execute("""
+        INSERT INTO messages(
+            sender_code,
+            receiver_code,
+            message
+        )
+        VALUES(?,?,?)
+    """,
+    (
+        my_code,
+        friend_code,
+        message
+    ))
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({"ok": True})
+
+
+# ==========================================
+# LOGOUT
+# ==========================================
+
 @app.route("/logout")
 def logout():
-
     session.clear()
-
     return redirect("/register")
 
 
-# ==========================================
-# START
-# ==========================================
-
 if __name__ == "__main__":
-
-    @app.route("/messages/<friend_code>")
-    def get_messages(friend_code):
-
-        if "hx_code" not in session:
-            return jsonify([])
-
-        my_code = session["hx_code"]
-
-        conn = sqlite3.connect(DB_NAME)
-        cur = conn.cursor()
-
-        cur.execute("""
-            SELECT sender_code,message
-            FROM messages
-            WHERE
-            (sender_code=? AND receiver_code=?)
-            OR
-            (sender_code=? AND receiver_code=?)
-            ORDER BY id
-        """,
-                    (
-                        my_code,
-                        friend_code,
-                        friend_code,
-                        my_code
-                    ))
-
-        rows = cur.fetchall()
-
-        conn.close()
-
-        return jsonify([
-            {
-                "sender": row[0],
-                "text": row[1]
-            }
-            for row in rows
-        ])
-
-
-    @app.route("/send_ajax", methods=["POST"])
-    def send_ajax():
-
-        if "hx_code" not in session:
-            return jsonify({"ok": False})
-
-        data = request.get_json()
-
-        friend_code = data["friend"]
-        message = data["message"]
-
-        my_code = session["hx_code"]
-
-        conn = sqlite3.connect(DB_NAME)
-        cur = conn.cursor()
-
-        cur.execute("""
-            INSERT INTO messages(
-                sender_code,
-                receiver_code,
-                message
-            )
-            VALUES(?,?,?)
-        """,
-                    (
-                        my_code,
-                        friend_code,
-                        message
-                    ))
-
-        conn.commit()
-        conn.close()
-
-        return jsonify({"ok": True})
-
     app.run(
         debug=True,
         host="127.0.0.1",
