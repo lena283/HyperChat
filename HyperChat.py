@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, session, jsonify
+from flask_socketio import SocketIO, emit, join_room
 import sqlite3
 import random
 import string
@@ -7,6 +8,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.secret_key = "hyperchat_secret_key"
+
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DB_NAME = os.path.join(BASE_DIR, "hyperchat.db")
@@ -49,13 +52,10 @@ def init_db():
 
     if "password_hash" not in columns:
         cur.execute("ALTER TABLE users ADD COLUMN password_hash TEXT")
-
     if "nickname" not in columns:
         cur.execute("ALTER TABLE users ADD COLUMN nickname TEXT")
-
     if "hx_code" not in columns:
         cur.execute("ALTER TABLE users ADD COLUMN hx_code TEXT")
-
     if "bio" not in columns:
         cur.execute("ALTER TABLE users ADD COLUMN bio TEXT DEFAULT ''")
 
@@ -108,7 +108,6 @@ def register():
 
         conn = sqlite3.connect(DB_NAME)
         cur = conn.cursor()
-
         cur.execute("SELECT id FROM users WHERE nickname=?", (nickname,))
         exists = cur.fetchone()
         if exists:
@@ -119,13 +118,9 @@ def register():
         password_hash = generate_password_hash(password)
 
         cur.execute(
-            """
-            INSERT INTO users(nickname, password_hash, hx_code)
-            VALUES(?,?,?)
-            """,
+            "INSERT INTO users(nickname, password_hash, hx_code) VALUES(?,?,?)",
             (nickname, password_hash, hx_code)
         )
-
         conn.commit()
         conn.close()
 
@@ -146,7 +141,6 @@ def login():
             return render_template("login.html", error="Неверный ник или пароль")
 
         db_nickname, db_password_hash, db_hx_code, db_bio = user
-
         if not db_password_hash or not check_password_hash(db_password_hash, password):
             return render_template("login.html", error="Неверный ник или пароль")
 
@@ -167,24 +161,10 @@ def profile():
 
     if request.method == "POST":
         bio = request.form["bio"]
-        cur.execute(
-            """
-            UPDATE users
-            SET bio=?
-            WHERE hx_code=?
-            """,
-            (bio, hx_code)
-        )
+        cur.execute("UPDATE users SET bio=? WHERE hx_code=?", (bio, hx_code))
         conn.commit()
 
-    cur.execute(
-        """
-        SELECT nickname, hx_code, bio
-        FROM users
-        WHERE hx_code=?
-        """,
-        (hx_code,)
-    )
+    cur.execute("SELECT nickname, hx_code, bio FROM users WHERE hx_code=?", (hx_code,))
     user = cur.fetchone()
     conn.close()
 
@@ -207,18 +187,12 @@ def add_friend():
 
     cur.execute("SELECT hx_code FROM users WHERE hx_code=?", (friend_code,))
     user = cur.fetchone()
-
     if not user:
         conn.close()
         return redirect("/friends")
 
     cur.execute(
-        """
-        SELECT id
-        FROM friends
-        WHERE owner_code=?
-        AND friend_code=?
-        """,
+        "SELECT id FROM friends WHERE owner_code=? AND friend_code=?",
         (owner, friend_code)
     )
     exists = cur.fetchone()
@@ -235,6 +209,8 @@ def add_friend():
         conn.commit()
 
     conn.close()
+    socketio.emit("friends_updated", {"owner": owner, "friend": friend_code})
+    socketio.emit("friends_updated", {"owner": friend_code, "friend": owner})
     return redirect("/friends")
 
 
@@ -247,25 +223,13 @@ def friends():
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
 
-    cur.execute(
-        """
-        SELECT friend_code
-        FROM friends
-        WHERE owner_code=?
-        """,
-        (hx_code,)
-    )
-
+    cur.execute("SELECT friend_code FROM friends WHERE owner_code=?", (hx_code,))
     rows = cur.fetchall()
     friend_list = []
 
     for row in rows:
         cur.execute(
-            """
-            SELECT nickname, hx_code
-            FROM users
-            WHERE hx_code=?
-            """,
+            "SELECT nickname, hx_code FROM users WHERE hx_code=?",
             (row[0],)
         )
         friend = cur.fetchone()
@@ -286,11 +250,7 @@ def delete_friend(friend_code):
     cur = conn.cursor()
 
     cur.execute(
-        """
-        DELETE FROM friends
-        WHERE owner_code=?
-        AND friend_code=?
-        """,
+        "DELETE FROM friends WHERE owner_code=? AND friend_code=?",
         (owner, friend_code)
     )
 
@@ -316,8 +276,7 @@ def get_messages(friend_code):
         OR
         (sender_code=? AND receiver_code=?)
         ORDER BY id
-    """,
-    (
+    """, (
         my_code,
         friend_code,
         friend_code,
@@ -328,11 +287,7 @@ def get_messages(friend_code):
     conn.close()
 
     return jsonify([
-        {
-            "sender": row[0],
-            "text": row[1],
-            "created": row[2]
-        }
+        {"sender": row[0], "text": row[1], "created": row[2]}
         for row in rows
     ])
 
@@ -355,17 +310,18 @@ def send_ajax():
 
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
-
     cur.execute(
-        """
-        INSERT INTO messages(sender_code, receiver_code, message)
-        VALUES(?,?,?)
-        """,
+        "INSERT INTO messages(sender_code, receiver_code, message) VALUES(?,?,?)",
         (my_code, friend_code, message)
     )
-
     conn.commit()
     conn.close()
+
+    socketio.emit("new_message", {
+        "sender": my_code,
+        "receiver": friend_code,
+        "text": message
+    })
 
     return jsonify({"ok": True})
 
@@ -376,5 +332,11 @@ def logout():
     return redirect("/login")
 
 
+@socketio.on("connect")
+def on_connect():
+    if "hx_code" in session:
+        join_room(session["hx_code"])
+
+
 if __name__ == "__main__":
-    app.run(debug=True, host="127.0.0.1", port=5000)
+    socketio.run(app, debug=True, host="127.0.0.1", port=5000)

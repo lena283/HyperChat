@@ -71,8 +71,10 @@
 
 </div>
 
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <script>
 let currentFriend = "";
+const socket = io();
 
 function openChat(code, name) {
     currentFriend = code;
@@ -112,9 +114,7 @@ document.getElementById("sendForm").addEventListener("submit", function(e) {
 
     fetch("/send_ajax", {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
+        headers: {"Content-Type": "application/json"},
         body: JSON.stringify({
             friend: currentFriend,
             message: text
@@ -129,8 +129,14 @@ document.getElementById("sendForm").addEventListener("submit", function(e) {
     });
 });
 
-setInterval(loadMessages, 2000);
-</script>
+socket.on("new_message", function(data) {
+    if (data.sender === currentFriend || data.receiver === currentFriend) {
+        loadMessages();
+    }
+});
 
-</body>
-</html>
+socket.on("friends_updated", function(data) {
+});
+
+setInterval(loadMessages, 1000);
+</script>
