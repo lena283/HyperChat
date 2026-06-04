@@ -45,8 +45,6 @@
 
     <div class="chat-layout">
 
-        <!-- Левая колонка -->
-
         <div class="friends-panel">
 
             <h3>Список друзей</h3>
@@ -68,17 +66,13 @@
 
         </div>
 
-        <!-- Правая колонка -->
-
         <div class="chat-panel">
 
             <h2 id="chatTitle">
                 Выберите друга
             </h2>
 
-            <div id="messages">
-
-            </div>
+            <div id="messages"></div>
 
             <form id="sendForm">
 
@@ -142,7 +136,6 @@ function loadMessages(){
                     <br>
 
                     ${msg.text}
-
                 </div>
             `;
         });
@@ -168,19 +161,12 @@ document.getElementById(
             "/send_ajax",
             {
                 method: "POST",
-
                 headers: {
-                    "Content-Type":
-                    "application/json"
+                    "Content-Type": "application/json"
                 },
-
                 body: JSON.stringify({
-
-                    friend:
-                    currentFriend,
-
-                    message:
-                    document.getElementById(
+                    friend: currentFriend,
+                    message: document.getElementById(
                         "messageInput"
                     ).value
                 })

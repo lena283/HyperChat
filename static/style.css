@@ -185,29 +185,6 @@ nav a:hover {
   border: 1px solid #ff6b6b44;
 }
 
-@media (max-width: 600px) {
-  body {
-    padding: 10px;
-  }
-
-  form {
-    padding: 20px;
-  }
-
-  li {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  li a {
-    margin: 5px 0;
-  }
-
-  #message {
-    width: 100%;
-    margin-bottom: 10px;
-  }
-}
 .chat-layout{
     display:flex;
     gap:20px;
@@ -247,4 +224,28 @@ nav a:hover {
     padding:10px;
     border-radius:10px;
     margin-bottom:10px;
+}
+
+@media (max-width: 600px) {
+  body {
+    padding: 10px;
+  }
+
+  form {
+    padding: 20px;
+  }
+
+  li {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  li a {
+    margin: 5px 0;
+  }
+
+  #message {
+    width: 100%;
+    margin-bottom: 10px;
+  }
 }
