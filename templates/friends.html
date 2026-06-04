@@ -4,7 +4,6 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>HyperChat — Друзья</title>
-
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -34,164 +33,103 @@
     </form>
 
     {% if not friends %}
-
         <p style="text-align:center;margin-top:20px;">
             У вас пока нет друзей.
         </p>
-
     {% endif %}
 
     {% if friends %}
-
     <div class="chat-layout">
 
         <div class="friends-panel">
-
             <h3>Список друзей</h3>
 
             {% for f in friends %}
-
-            <div
-                class="friend-card"
-                onclick="openChat('{{f[1]}}','{{f[0]}}')">
-
+            <div class="friend-card" onclick="openChat('{{f[1]}}','{{f[0]}}')">
                 <b>{{f[0]}}</b>
                 <br>
-
                 <small>{{f[1]}}</small>
-
             </div>
-
             {% endfor %}
-
         </div>
 
         <div class="chat-panel">
-
-            <h2 id="chatTitle">
-                Выберите друга
-            </h2>
-
+            <h2 id="chatTitle">Выберите друга</h2>
             <div id="messages"></div>
 
             <form id="sendForm">
-
                 <input
                     type="text"
                     id="messageInput"
                     placeholder="Введите сообщение">
-
-                <button type="submit">
-                    Отправить
-                </button>
-
+                <button type="submit">Отправить</button>
             </form>
-
         </div>
 
     </div>
-
     {% endif %}
 
 </div>
 
 <script>
-
 let currentFriend = "";
 
-function openChat(code,name){
-
+function openChat(code, name) {
     currentFriend = code;
-
-    document.getElementById(
-        "chatTitle"
-    ).innerText =
-        "Чат с " + name;
-
+    document.getElementById("chatTitle").innerText = "Чат с " + name;
     loadMessages();
 }
 
-function loadMessages(){
+function loadMessages() {
+    if (currentFriend === "") return;
 
-    if(currentFriend === "")
-        return;
+    fetch("/messages/" + currentFriend)
+        .then(response => response.json())
+        .then(data => {
+            let html = "";
 
-    fetch(
-        "/messages/" + currentFriend
-    )
+            data.forEach(msg => {
+                html += `
+                    <div class="msg">
+                        <b>${msg.sender}</b>
+                        <br>
+                        ${msg.text}
+                    </div>
+                `;
+            });
 
-    .then(response => response.json())
-
-    .then(data => {
-
-        let html = "";
-
-        data.forEach(msg => {
-
-            html += `
-                <div class="msg">
-
-                    <b>${msg.sender}</b>
-
-                    <br>
-
-                    ${msg.text}
-                </div>
-            `;
+            document.getElementById("messages").innerHTML = html;
         });
-
-        document.getElementById(
-            "messages"
-        ).innerHTML = html;
-    });
 }
 
-document.getElementById(
-    "sendForm"
-).addEventListener(
-    "submit",
-    function(e){
+document.getElementById("sendForm").addEventListener("submit", function(e) {
+    e.preventDefault();
 
-        e.preventDefault();
+    if (currentFriend === "") return;
 
-        if(currentFriend === "")
-            return;
+    const text = document.getElementById("messageInput").value.trim();
+    if (!text) return;
 
-        fetch(
-            "/send_ajax",
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    friend: currentFriend,
-                    message: document.getElementById(
-                        "messageInput"
-                    ).value
-                })
-            }
-        )
-
-        .then(response => response.json())
-
-        .then(data => {
-
-            document.getElementById(
-                "messageInput"
-            ).value = "";
-
+    fetch("/send_ajax", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            friend: currentFriend,
+            message: text
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.ok) {
+            document.getElementById("messageInput").value = "";
             loadMessages();
-        });
+        }
+    });
+});
 
-    }
-);
-
-setInterval(
-    loadMessages,
-    2000
-);
-
+setInterval(loadMessages, 2000);
 </script>
 
 </body>

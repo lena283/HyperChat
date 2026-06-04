@@ -78,15 +78,6 @@ def generate_hx():
             return hx
 
 
-def get_user(hx_code):
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-    cur.execute("SELECT nickname, hx_code, bio FROM users WHERE hx_code=?", (hx_code,))
-    user = cur.fetchone()
-    conn.close()
-    return user
-
-
 def get_user_by_nickname(nickname):
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
@@ -351,12 +342,15 @@ def send_ajax():
     if "hx_code" not in session:
         return jsonify({"ok": False})
 
-    data = request.get_json()
-    friend_code = data["friend"]
-    message = data["message"].strip()
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"ok": False})
+
+    friend_code = str(data.get("friend", "")).strip().upper()
+    message = str(data.get("message", "")).strip()
     my_code = session["hx_code"]
 
-    if not message:
+    if not friend_code or not message:
         return jsonify({"ok": False})
 
     conn = sqlite3.connect(DB_NAME)
