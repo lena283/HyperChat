@@ -1,5 +1,4 @@
 from flask import Flask, render_template, request, redirect, session, jsonify
-from flask_socketio import SocketIO, emit, join_room
 import sqlite3
 import random
 import string
@@ -9,10 +8,11 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.secret_key = "hyperchat_secret_key"
 
-socketio = SocketIO(app, cors_allowed_origins="*")
-
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DB_NAME = os.path.join(BASE_DIR, "hyperchat.db")
+
+BOT_CODE = "HX-000000"
+BOT_NICK = "HyperBot"
 
 
 def init_db():
@@ -58,6 +58,13 @@ def init_db():
         cur.execute("ALTER TABLE users ADD COLUMN hx_code TEXT")
     if "bio" not in columns:
         cur.execute("ALTER TABLE users ADD COLUMN bio TEXT DEFAULT ''")
+
+    cur.execute("SELECT id FROM users WHERE hx_code=?", (BOT_CODE,))
+    if not cur.fetchone():
+        cur.execute(
+            "INSERT INTO users(nickname, password_hash, hx_code, bio) VALUES(?,?,?,?)",
+            (BOT_NICK, "", BOT_CODE, "I am your test bot.")
+        )
 
     conn.commit()
     conn.close()
@@ -109,8 +116,7 @@ def register():
         conn = sqlite3.connect(DB_NAME)
         cur = conn.cursor()
         cur.execute("SELECT id FROM users WHERE nickname=?", (nickname,))
-        exists = cur.fetchone()
-        if exists:
+        if cur.fetchone():
             conn.close()
             return render_template("register.html", error="Такой ник уже занят")
 
@@ -140,7 +146,7 @@ def login():
         if not user:
             return render_template("login.html", error="Неверный ник или пароль")
 
-        db_nickname, db_password_hash, db_hx_code, db_bio = user
+        _, db_password_hash, db_hx_code, _ = user
         if not db_password_hash or not check_password_hash(db_password_hash, password):
             return render_template("login.html", error="Неверный ник или пароль")
 
@@ -184,10 +190,8 @@ def add_friend():
 
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
-
     cur.execute("SELECT hx_code FROM users WHERE hx_code=?", (friend_code,))
-    user = cur.fetchone()
-    if not user:
+    if not cur.fetchone():
         conn.close()
         return redirect("/friends")
 
@@ -195,22 +199,12 @@ def add_friend():
         "SELECT id FROM friends WHERE owner_code=? AND friend_code=?",
         (owner, friend_code)
     )
-    exists = cur.fetchone()
-
-    if not exists:
-        cur.execute(
-            "INSERT INTO friends(owner_code, friend_code) VALUES(?,?)",
-            (owner, friend_code)
-        )
-        cur.execute(
-            "INSERT INTO friends(owner_code, friend_code) VALUES(?,?)",
-            (friend_code, owner)
-        )
+    if not cur.fetchone():
+        cur.execute("INSERT INTO friends(owner_code, friend_code) VALUES(?,?)", (owner, friend_code))
+        cur.execute("INSERT INTO friends(owner_code, friend_code) VALUES(?,?)", (friend_code, owner))
         conn.commit()
 
     conn.close()
-    socketio.emit("friends_updated", {"owner": owner, "friend": friend_code})
-    socketio.emit("friends_updated", {"owner": friend_code, "friend": owner})
     return redirect("/friends")
 
 
@@ -225,38 +219,16 @@ def friends():
 
     cur.execute("SELECT friend_code FROM friends WHERE owner_code=?", (hx_code,))
     rows = cur.fetchall()
-    friend_list = []
 
+    friend_list = []
     for row in rows:
-        cur.execute(
-            "SELECT nickname, hx_code FROM users WHERE hx_code=?",
-            (row[0],)
-        )
+        cur.execute("SELECT nickname, hx_code FROM users WHERE hx_code=?", (row[0],))
         friend = cur.fetchone()
         if friend:
             friend_list.append(friend)
 
     conn.close()
     return render_template("friends.html", friends=friend_list)
-
-
-@app.route("/delete_friend/<friend_code>")
-def delete_friend(friend_code):
-    if "hx_code" not in session:
-        return redirect("/login")
-
-    owner = session["hx_code"]
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-
-    cur.execute(
-        "DELETE FROM friends WHERE owner_code=? AND friend_code=?",
-        (owner, friend_code)
-    )
-
-    conn.commit()
-    conn.close()
-    return redirect("/friends")
 
 
 @app.route("/messages/<friend_code>")
@@ -269,26 +241,21 @@ def get_messages(friend_code):
     cur = conn.cursor()
 
     cur.execute("""
-        SELECT sender_code, message, created
+        SELECT sender_code, message
         FROM messages
         WHERE
         (sender_code=? AND receiver_code=?)
         OR
         (sender_code=? AND receiver_code=?)
         ORDER BY id
-    """, (
-        my_code,
-        friend_code,
-        friend_code,
-        my_code
-    ))
+    """, (my_code, friend_code, friend_code, my_code))
 
     rows = cur.fetchall()
     conn.close()
 
     return jsonify([
-        {"sender": row[0], "text": row[1], "created": row[2]}
-        for row in rows
+        {"sender": r[0], "text": r[1]}
+        for r in rows
     ])
 
 
@@ -297,10 +264,7 @@ def send_ajax():
     if "hx_code" not in session:
         return jsonify({"ok": False})
 
-    data = request.get_json(silent=True)
-    if not data:
-        return jsonify({"ok": False})
-
+    data = request.get_json(silent=True) or {}
     friend_code = str(data.get("friend", "")).strip().upper()
     message = str(data.get("message", "")).strip()
     my_code = session["hx_code"]
@@ -317,11 +281,21 @@ def send_ajax():
     conn.commit()
     conn.close()
 
-    socketio.emit("new_message", {
-        "sender": my_code,
-        "receiver": friend_code,
-        "text": message
-    })
+    if friend_code == BOT_CODE:
+        reply = "Сообщение получено."
+        low = message.lower()
+        if "привет" in low or "hello" in low:
+            reply = "Привет! Я HyperBot."
+        elif "как дела" in low:
+            reply = "У меня всё отлично. Чат работает."
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO messages(sender_code, receiver_code, message) VALUES(?,?,?)",
+            (BOT_CODE, my_code, reply)
+        )
+        conn.commit()
+        conn.close()
 
     return jsonify({"ok": True})
 
@@ -332,11 +306,5 @@ def logout():
     return redirect("/login")
 
 
-@socketio.on("connect")
-def on_connect():
-    if "hx_code" in session:
-        join_room(session["hx_code"])
-
-
 if __name__ == "__main__":
-    socketio.run(app, debug=True, host="127.0.0.1", port=5000)
+    app.run(debug=True, host="127.0.0.1", port=5000)

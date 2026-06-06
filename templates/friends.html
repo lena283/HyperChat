@@ -19,18 +19,13 @@
     <h2>Друзья</h2>
 
     <form method="post" action="/add_friend">
-
-        <input
-            type="text"
-            name="friend_code"
-            placeholder="HX-123456"
-            required>
-
-        <button type="submit">
-            Добавить друга
-        </button>
-
+        <input type="text" name="friend_code" placeholder="HX-123456" required>
+        <button type="submit">Добавить друга</button>
     </form>
+
+    <div style="margin-bottom:20px;">
+        <button type="button" onclick="openBot()">Чат с ботом</button>
+    </div>
 
     {% if not friends %}
         <p style="text-align:center;margin-top:20px;">
@@ -58,12 +53,14 @@
             <div id="messages"></div>
 
             <form id="sendForm">
-                <input
-                    type="text"
-                    id="messageInput"
-                    placeholder="Введите сообщение">
+                <input type="text" id="messageInput" placeholder="Введите сообщение">
                 <button type="submit">Отправить</button>
             </form>
+
+            <div style="margin-top:10px;">
+                <button type="button" onclick="startRecording()">🎤 Запись</button>
+                <button type="button" onclick="stopRecording()">⏹ Стоп</button>
+            </div>
         </div>
 
     </div>
@@ -71,10 +68,11 @@
 
 </div>
 
-<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <script>
 let currentFriend = "";
-const socket = io();
+const BOT_CODE = "HX-000000";
+let mediaRecorder = null;
+let audioChunks = [];
 
 function openChat(code, name) {
     currentFriend = code;
@@ -82,25 +80,41 @@ function openChat(code, name) {
     loadMessages();
 }
 
+function openBot() {
+    currentFriend = BOT_CODE;
+    document.getElementById("chatTitle").innerText = "Чат с HyperBot";
+    loadMessages();
+}
+
 function loadMessages() {
     if (currentFriend === "") return;
 
-    fetch("/messages/" + currentFriend)
+    fetch("/messages/" + encodeURIComponent(currentFriend), { cache: "no-store" })
         .then(response => response.json())
         .then(data => {
             let html = "";
-
             data.forEach(msg => {
-                html += `
-                    <div class="msg">
-                        <b>${msg.sender}</b>
-                        <br>
-                        ${msg.text}
-                    </div>
-                `;
+                if (msg.type === "voice") {
+                    html += `
+                        <div class="msg">
+                            <b>${msg.sender}</b>
+                            <br>
+                            <audio controls src="${msg.audio}"></audio>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div class="msg">
+                            <b>${msg.sender}</b>
+                            <br>
+                            ${msg.text}
+                        </div>
+                    `;
+                }
             });
-
-            document.getElementById("messages").innerHTML = html;
+            const box = document.getElementById("messages");
+            box.innerHTML = html;
+            box.scrollTop = box.scrollHeight;
         });
 }
 
@@ -129,14 +143,42 @@ document.getElementById("sendForm").addEventListener("submit", function(e) {
     });
 });
 
-socket.on("new_message", function(data) {
-    if (data.sender === currentFriend || data.receiver === currentFriend) {
+async function startRecording() {
+    if (currentFriend === "") return;
+
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks = [];
+
+    mediaRecorder.ondataavailable = e => {
+        if (e.data.size > 0) audioChunks.push(e.data);
+    };
+
+    mediaRecorder.onstop = async () => {
+        const blob = new Blob(audioChunks, { type: "audio/webm" });
+        const formData = new FormData();
+        formData.append("audio", blob, "voice.webm");
+        formData.append("friend", currentFriend);
+
+        await fetch("/send_voice", {
+            method: "POST",
+            body: formData
+        });
+
         loadMessages();
+    };
+
+    mediaRecorder.start();
+}
+
+function stopRecording() {
+    if (mediaRecorder && mediaRecorder.state !== "inactive") {
+        mediaRecorder.stop();
     }
-});
+}
 
-socket.on("friends_updated", function(data) {
-});
-
-setInterval(loadMessages, 1000);
+setInterval(loadMessages, 500);
 </script>
+
+</body>
+</html>
