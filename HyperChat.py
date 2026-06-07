@@ -369,41 +369,6 @@ def notifications_count():
     return jsonify({"count": count})
 
 
-@app.route("/notifications_list")
-def notifications_list():
-    if "hx_code" not in session:
-        return jsonify([])
-
-    user_code = session["hx_code"]
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-
-    cur.execute("""
-        SELECT n.id, n.from_code, u.nickname, m.message, n.created, n.is_read
-        FROM notifications n
-        JOIN messages m ON m.id = n.message_id
-        LEFT JOIN users u ON u.hx_code = n.from_code
-        WHERE n.user_code=?
-        ORDER BY n.id DESC
-        LIMIT 10
-    """, (user_code,))
-
-    rows = cur.fetchall()
-    conn.close()
-
-    result = []
-    for r in rows:
-        result.append({
-            "id": r[0],
-            "from_code": r[1],
-            "from_name": r[2] if r[2] else r[1],
-            "message": r[3],
-            "created": r[4],
-            "is_read": r[5]
-        })
-    return jsonify(result)
-
-
 @app.route("/mark_notifications_read", methods=["POST"])
 def mark_notifications_read():
     if "hx_code" not in session:
@@ -423,27 +388,6 @@ def mark_notifications_read():
     return jsonify({"ok": True})
 
 
-@app.route("/mark_notification_read", methods=["POST"])
-def mark_notification_read():
-    if "hx_code" not in session:
-        return jsonify({"ok": False})
-
-    data = request.get_json(silent=True) or {}
-    notif_id = data.get("id")
-    if not notif_id:
-        return jsonify({"ok": False})
-
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-    cur.execute(
-        "UPDATE notifications SET is_read=1 WHERE id=? AND user_code=?",
-        (notif_id, session["hx_code"])
-    )
-    conn.commit()
-    conn.close()
-    return jsonify({"ok": True})
-
-
 @app.route("/logout")
 def logout():
     session.clear()
@@ -451,4 +395,4 @@ def logout():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host="127.0.0.1", port=5000) 
+    app.run(debug=True, host="127.0.0.1", port=5000)
