@@ -15,7 +15,7 @@ body {
 }
 
 .container {
-  max-width: 800px;
+  max-width: 980px;
   margin: 0 auto;
   padding: 20px;
 }
@@ -88,16 +88,6 @@ button {
 button:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(77, 166, 255, 0.4);
-  background: linear-gradient(135deg, #5db3ff 0%, #4a9cff 100%);
-}
-
-button:active {
-  transform: translateY(0);
-}
-
-p {
-  margin: 10px 0;
-  line-height: 1.6;
 }
 
 nav {
@@ -106,16 +96,14 @@ nav {
   border-radius: 12px;
   margin-bottom: 30px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
 }
 
 nav a {
-  margin: 0 10px;
   font-weight: 500;
-}
-
-nav a:hover {
-  color: #7ec8ff;
-  text-decoration: none;
 }
 
 .profile-info {
@@ -123,11 +111,6 @@ nav a:hover {
   padding: 25px;
   border-radius: 12px;
   margin-bottom: 20px;
-}
-
-.profile-info p {
-  margin: 10px 0;
-  font-size: 16px;
 }
 
 .profile-info strong {
@@ -146,10 +129,11 @@ nav a:hover {
 .chat-layout{
     display:flex;
     gap:20px;
+    align-items:flex-start;
 }
 
 .friends-panel{
-    width:300px;
+    width:320px;
 }
 
 .chat-panel{
@@ -157,15 +141,34 @@ nav a:hover {
 }
 
 .friend-card{
-    background:#1e293b;
-    padding:15px;
-    border-radius:12px;
-    margin-bottom:10px;
-    cursor:pointer;
+    background: linear-gradient(180deg, #1e293b 0%, #162033 100%);
+    padding: 14px;
+    border-radius: 14px;
+    margin-bottom: 10px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    border: 1px solid rgba(255,255,255,.05);
 }
 
-.friend-card:hover{
-    background:#334155;
+.friend-main{
+    cursor:pointer;
+    flex:1;
+}
+
+.friend-profile-btn{
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: rgba(77,166,255,.14);
+    color: #7ec8ff;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+.friend-profile-btn:hover{
+    background: rgba(77,166,255,.25);
+    text-decoration:none;
 }
 
 #messages{
@@ -184,6 +187,95 @@ nav a:hover {
     margin-bottom:10px;
 }
 
+.notif-wrap{
+    position: relative;
+    display: inline-block;
+    margin-left: 12px;
+    vertical-align: middle;
+}
+
+.notif-bell{
+    font-size: 24px;
+    cursor: pointer;
+    display: inline-block;
+    transform-origin: top center;
+    filter: drop-shadow(0 0 8px rgba(255,255,255,.15));
+}
+
+.notif-count{
+    position: absolute;
+    top: -8px;
+    right: -10px;
+    background: linear-gradient(135deg, #ff3b30, #ff6b6b);
+    color: #fff;
+    border-radius: 999px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 0 2px #111827, 0 8px 20px rgba(255,59,48,.3);
+}
+
+.hidden{
+    display:none;
+}
+
+.bell-shake{
+    animation: bellShake 0.7s infinite;
+}
+
+@keyframes bellShake{
+    0%{ transform: rotate(0deg) scale(1); }
+    20%{ transform: rotate(15deg) scale(1.05); }
+    40%{ transform: rotate(-12deg) scale(1.05); }
+    60%{ transform: rotate(10deg) scale(1.05); }
+    80%{ transform: rotate(-8deg) scale(1.05); }
+    100%{ transform: rotate(0deg) scale(1); }
+}
+
+.profile-card{
+    background: rgba(37, 37, 64, 0.95);
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 12px 35px rgba(0,0,0,.35);
+    text-align:center;
+    margin-top: 20px;
+    border: 1px solid rgba(255,255,255,.06);
+}
+
+.profile-avatar{
+    width: 88px;
+    height: 88px;
+    margin: 0 auto 16px;
+    border-radius: 50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background: linear-gradient(135deg, #4da6ff 0%, #7c4dff 100%);
+    font-size: 34px;
+    font-weight: 700;
+    color: white;
+    box-shadow: 0 10px 25px rgba(77,166,255,.25);
+}
+
+.profile-code{
+    color: #7ec8ff;
+    margin-bottom: 18px;
+    font-weight: 600;
+    letter-spacing: .5px;
+}
+
+.profile-bio{
+    background: #1e1e32;
+    border-radius: 14px;
+    padding: 18px;
+    text-align:left;
+    margin-top: 16px;
+}
+
 @media (max-width: 600px) {
   body {
     padding: 10px;
@@ -200,51 +292,4 @@ nav a:hover {
   .friends-panel{
     width:100%;
   }
-}
-.notif-wrap{
-    position: relative;
-    display: inline-block;
-    margin-left: 12px;
-    vertical-align: middle;
-}
-
-.notif-bell{
-    font-size: 24px;
-    cursor: pointer;
-    display: inline-block;
-    transform-origin: top center;
-}
-
-.notif-count{
-    position: absolute;
-    top: -8px;
-    right: -10px;
-    background: #ff3b30;
-    color: #fff;
-    border-radius: 999px;
-    min-width: 18px;
-    height: 18px;
-    padding: 0 4px;
-    font-size: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 0 0 2px #fff;
-}
-
-.hidden{
-    display: none;
-}
-
-.bell-shake{
-    animation: bellShake 0.6s infinite;
-}
-
-@keyframes bellShake{
-    0%{ transform: rotate(0deg); }
-    20%{ transform: rotate(15deg); }
-    40%{ transform: rotate(-12deg); }
-    60%{ transform: rotate(10deg); }
-    80%{ transform: rotate(-8deg); }
-    100%{ transform: rotate(0deg); }
 }

@@ -60,21 +60,22 @@ def init_db():
     )
     """)
 
-    cur.execute("PRAGMA table_info(messages)")
-    columns = [row[1] for row in cur.fetchall()]
-
-    if "password_hash" not in [row[1] for row in cur.execute("PRAGMA table_info(users)")]:
+    cur.execute("PRAGMA table_info(users)")
+    user_cols = [row[1] for row in cur.fetchall()]
+    if "password_hash" not in user_cols:
         cur.execute("ALTER TABLE users ADD COLUMN password_hash TEXT")
-    if "nickname" not in [row[1] for row in cur.execute("PRAGMA table_info(users)")]:
+    if "nickname" not in user_cols:
         cur.execute("ALTER TABLE users ADD COLUMN nickname TEXT")
-    if "hx_code" not in [row[1] for row in cur.execute("PRAGMA table_info(users)")]:
+    if "hx_code" not in user_cols:
         cur.execute("ALTER TABLE users ADD COLUMN hx_code TEXT")
-    if "bio" not in [row[1] for row in cur.execute("PRAGMA table_info(users)")]:
+    if "bio" not in user_cols:
         cur.execute("ALTER TABLE users ADD COLUMN bio TEXT DEFAULT ''")
 
-    if "msg_type" not in columns:
+    cur.execute("PRAGMA table_info(messages)")
+    msg_cols = [row[1] for row in cur.fetchall()]
+    if "msg_type" not in msg_cols:
         cur.execute("ALTER TABLE messages ADD COLUMN msg_type TEXT DEFAULT 'text'")
-    if "audio_path" not in columns:
+    if "audio_path" not in msg_cols:
         cur.execute("ALTER TABLE messages ADD COLUMN audio_path TEXT DEFAULT ''")
 
     cur.execute("SELECT id FROM users WHERE hx_code=?", (BOT_CODE,))
@@ -195,6 +196,29 @@ def profile():
     return render_template("profile.html", user=user)
 
 
+@app.route("/api/user/<hx_code>")
+def api_user(hx_code):
+    if "hx_code" not in session:
+        return jsonify({"ok": False})
+
+    hx_code = hx_code.strip().upper()
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    cur.execute("SELECT nickname, hx_code, bio FROM users WHERE hx_code=?", (hx_code,))
+    user = cur.fetchone()
+    conn.close()
+
+    if not user:
+        return jsonify({"ok": False})
+
+    return jsonify({
+        "ok": True,
+        "nickname": user[0],
+        "hx_code": user[1],
+        "bio": user[2] or ""
+    })
+
+
 @app.route("/add_friend", methods=["POST"])
 def add_friend():
     if "hx_code" not in session:
@@ -208,16 +232,12 @@ def add_friend():
 
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
-
     cur.execute("SELECT hx_code FROM users WHERE hx_code=?", (friend_code,))
     if not cur.fetchone():
         conn.close()
         return redirect("/friends")
 
-    cur.execute(
-        "SELECT id FROM friends WHERE owner_code=? AND friend_code=?",
-        (owner, friend_code)
-    )
+    cur.execute("SELECT id FROM friends WHERE owner_code=? AND friend_code=?", (owner, friend_code))
     if not cur.fetchone():
         cur.execute("INSERT INTO friends(owner_code, friend_code) VALUES(?,?)", (owner, friend_code))
         cur.execute("INSERT INTO friends(owner_code, friend_code) VALUES(?,?)", (friend_code, owner))
@@ -241,10 +261,17 @@ def friends():
 
     friend_list = []
     for row in rows:
-        cur.execute("SELECT nickname, hx_code FROM users WHERE hx_code=?", (row[0],))
+        friend_code = row[0]
+        cur.execute("SELECT nickname, hx_code FROM users WHERE hx_code=?", (friend_code,))
         friend = cur.fetchone()
         if friend:
-            friend_list.append(friend)
+            cur.execute("""
+                SELECT COUNT(*)
+                FROM notifications
+                WHERE user_code=? AND from_code=? AND is_read=0
+            """, (hx_code, friend_code))
+            unread = cur.fetchone()[0]
+            friend_list.append((friend[0], friend[1], unread))
 
     conn.close()
     return render_template("friends.html", friends=friend_list)
@@ -297,7 +324,6 @@ def send_ajax():
 
     conn.commit()
     conn.close()
-
     return jsonify({"ok": True})
 
 
@@ -309,7 +335,6 @@ def get_messages(friend_code):
     my_code = session["hx_code"]
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
-
     cur.execute("""
         SELECT sender_code, message, msg_type, audio_path
         FROM messages
@@ -319,7 +344,6 @@ def get_messages(friend_code):
         (sender_code=? AND receiver_code=?)
         ORDER BY id
     """, (my_code, friend_code, friend_code, my_code))
-
     rows = cur.fetchall()
     conn.close()
 

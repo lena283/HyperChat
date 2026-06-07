@@ -1,28 +1,20 @@
-<!doctype html>
-<html lang="ru">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>HyperChat — Вход</title>
-  <link rel="stylesheet" href="/static/style.css">
-</head>
-<body>
-  <div class="container">
-    <h2>HyperChat вход</h2>
+{% extends "base.html" %}
+{% block title %}HyperChat — Вход{% endblock %}
 
-    {% if error %}
-      <div class="error">{{ error }}</div>
-    {% endif %}
+{% block content %}
+<h2>HyperChat вход</h2>
 
-    <form method="post">
-      <input name="nickname" placeholder="Никнейм" required autofocus>
-      <input name="password" type="password" placeholder="Пароль" required>
-      <button type="submit">Войти</button>
-    </form>
+{% if error %}
+  <div class="error">{{ error }}</div>
+{% endif %}
 
-    <p style="text-align:center;">
-      Нет аккаунта? <a href="/register">Регистрация</a>
-    </p>
-  </div>
-</body>
-</html>
+<form method="post">
+  <input name="nickname" placeholder="Никнейм" required autofocus>
+  <input name="password" type="password" placeholder="Пароль" required>
+  <button type="submit">Войти</button>
+</form>
+
+<p style="text-align:center;">
+  Нет аккаунта? <a href="/register">Регистрация</a>
+</p>
+{% endblock %}

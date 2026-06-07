@@ -1,73 +1,64 @@
-<!doctype html>
-<html lang="ru">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>HyperChat — Друзья</title>
-    <link rel="stylesheet" href="/static/style.css">
-</head>
-<body>
+{% extends "base.html" %}
+{% block title %}HyperChat — Друзья{% endblock %}
 
-<div class="container">
+{% block content %}
+<h2>Друзья</h2>
 
-    <nav>
-        <a href="/profile">Профиль</a>
-        <a href="/friends">Друзья</a>
-        <a href="/logout">Выйти</a>
+<form method="post" action="/add_friend">
+    <input type="text" name="friend_code" placeholder="HX-123456" required>
+    <button type="submit">Добавить друга</button>
+</form>
 
-        <div class="notif-wrap">
-            <div id="notifBell" class="notif-bell">🔔</div>
-            <div id="notifCount" class="notif-count hidden">0</div>
-        </div>
-    </nav>
+<div style="margin-bottom:20px;">
+    <button type="button" onclick="openBot()">Чат с ботом</button>
+</div>
 
-    <h2>Друзья</h2>
+{% if not friends %}
+    <p style="text-align:center;margin-top:20px;">У вас пока нет друзей.</p>
+{% endif %}
 
-    <form method="post" action="/add_friend">
-        <input type="text" name="friend_code" placeholder="HX-123456" required>
-        <button type="submit">Добавить друга</button>
-    </form>
+<div class="chat-layout">
+    <div class="friends-panel">
+        <h3>Список друзей</h3>
 
-    <div style="margin-bottom:20px;">
-        <button type="button" onclick="openBot()">Чат с ботом</button>
-    </div>
-
-    {% if not friends %}
-        <p style="text-align:center;margin-top:20px;">
-            У вас пока нет друзей.
-        </p>
-    {% endif %}
-
-    {% if friends %}
-    <div class="chat-layout">
-
-        <div class="friends-panel">
-            <h3>Список друзей</h3>
-
-            {% for f in friends %}
-            <div class="friend-card" onclick="openChat('{{f[1]}}','{{f[0]}}')">
+        {% for f in friends %}
+        <div class="friend-card">
+            <div class="friend-main" onclick="openChat('{{f[1]}}','{{f[0]}}')">
                 <b>{{f[0]}}</b>
                 <br>
                 <small>{{f[1]}}</small>
             </div>
-            {% endfor %}
+
+            <div class="friend-actions">
+                {% if f[2] and f[2] > 0 %}
+                    <span class="chat-dot"></span>
+                {% endif %}
+                <a class="friend-profile-btn" href="#" onclick="openProfile('{{f[1]}}'); return false;">Профиль</a>
+            </div>
         </div>
-
-        <div class="chat-panel">
-            <h2 id="chatTitle">Выберите друга</h2>
-            <div id="messages"></div>
-
-            <form id="sendForm">
-                <input type="text" id="messageInput" placeholder="Введите сообщение">
-                <button type="submit">Отправить</button>
-            </form>
-        </div>
-
+        {% endfor %}
     </div>
-    {% endif %}
 
+    <div class="chat-panel">
+        <h2 id="chatTitle">Выберите друга</h2>
+        <div id="messages"></div>
+
+        <form id="sendForm">
+            <input type="text" id="messageInput" placeholder="Введите сообщение">
+            <button type="submit">Отправить</button>
+        </form>
+    </div>
 </div>
 
+<div id="profileModal" class="modal hidden">
+    <div class="modal-content">
+        <span class="modal-close" onclick="closeProfile()">&times;</span>
+        <div id="profileBody">Загрузка...</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
 <script>
 let currentFriend = "";
 const BOT_CODE = "HX-000000";
@@ -77,6 +68,8 @@ function openChat(code, name) {
     document.getElementById("chatTitle").innerText = "Чат с " + name;
     loadMessages();
     markChatRead(code);
+    const dot = document.querySelector(`[data-code="${code}"] .chat-dot`);
+    if (dot) dot.remove();
 }
 
 function openBot() {
@@ -96,8 +89,7 @@ function loadMessages() {
             data.forEach(msg => {
                 html += `
                     <div class="msg">
-                        <b>${msg.sender}</b>
-                        <br>
+                        <b>${msg.sender}</b><br>
                         ${msg.text}
                     </div>
                 `;
@@ -110,7 +102,6 @@ function loadMessages() {
 
 document.getElementById("sendForm").addEventListener("submit", function(e) {
     e.preventDefault();
-
     if (currentFriend === "") return;
 
     const text = document.getElementById("messageInput").value.trim();
@@ -133,24 +124,6 @@ document.getElementById("sendForm").addEventListener("submit", function(e) {
     });
 });
 
-function updateNotifications() {
-    fetch("/notifications_count", {cache: "no-store"})
-        .then(r => r.json())
-        .then(data => {
-            const countBox = document.getElementById("notifCount");
-            const bell = document.getElementById("notifBell");
-
-            if (data.count > 0) {
-                countBox.textContent = data.count;
-                countBox.classList.remove("hidden");
-                bell.classList.add("bell-shake");
-            } else {
-                countBox.classList.add("hidden");
-                bell.classList.remove("bell-shake");
-            }
-        });
-}
-
 function markChatRead(code) {
     fetch("/mark_notifications_read", {
         method: "POST",
@@ -159,10 +132,34 @@ function markChatRead(code) {
     }).then(() => updateNotifications());
 }
 
-setInterval(loadMessages, 500);
-setInterval(updateNotifications, 1500);
-updateNotifications();
-</script>
+function openProfile(code) {
+    fetch("/api/user/" + encodeURIComponent(code), {cache: "no-store"})
+        .then(r => r.json())
+        .then(data => {
+            if (!data.ok) return;
+            document.getElementById("profileBody").innerHTML = `
+                <div class="profile-card modal-profile">
+                    <div class="profile-avatar">${data.nickname[0]}</div>
+                    <h2>${data.nickname}</h2>
+                    <p class="profile-code">${data.hx_code}</p>
+                    <div class="profile-bio">
+                        <h3>О пользователе</h3>
+                        <p>${data.bio ? data.bio : "Пока нет описания."}</p>
+                    </div>
+                </div>
+            `;
+            document.getElementById("profileModal").classList.remove("hidden");
+        });
+}
 
-</body>
-</html>
+function closeProfile() {
+    document.getElementById("profileModal").classList.add("hidden");
+}
+
+document.getElementById("profileModal").addEventListener("click", function(e) {
+    if (e.target === this) closeProfile();
+});
+
+setInterval(loadMessages, 500);
+</script>
+{% endblock %}

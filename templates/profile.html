@@ -1,30 +1,20 @@
-<!doctype html>
-<html lang="ru">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>HyperChat — Профиль</title>
-  <link rel="stylesheet" href="/static/style.css">
-</head>
-<body>
-  <div class="container">
-    <nav>
-      <a href="/profile">Профиль</a>
-      <a href="/friends">Друзья</a>
-      <a href="/logout">Выйти</a>
-    </nav>
+{% extends "base.html" %}
+{% block title %}HyperChat — Профиль{% endblock %}
 
-    <h2>Профиль</h2>
+{% block content %}
+<h2>Мой профиль</h2>
 
-    <div class="profile-info">
-      <p><strong>Ник:</strong> {{ user[0] }}</p>
-      <p><strong>Код:</strong> {{ user[1] }}</p>
-    </div>
+<div class="profile-card">
+    <div class="profile-avatar">{{ user[0][0] }}</div>
+    <h2>{{ user[0] }}</h2>
+    <p class="profile-code">{{ user[1] }}</p>
 
     <form method="post">
-      <textarea name="bio" rows="6" placeholder="Биография">{{ user[2] }}</textarea><br>
-      <button type="submit">Сохранить био</button>
+        <div class="profile-bio">
+            <h3>О себе</h3>
+            <textarea name="bio" rows="6" placeholder="Расскажи о себе">{{ user[2] }}</textarea>
+        </div>
+        <button type="submit">Сохранить</button>
     </form>
-  </div>
-</body>
-</html>
+</div>
+{% endblock %}
