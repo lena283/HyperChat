@@ -1,25 +1,27 @@
 {% extends "base.html" %}
-{% block title %}HyperChat — Друзья{% endblock %}
+{% block title %}HyperChat — {{ 'Друзья' if language == 'ru' else 'Friends' }}{% endblock %}
 
 {% block content %}
-<h2>Друзья</h2>
+<h2>{{ 'Друзья' if language == 'ru' else 'Friends' }}</h2>
 
 <form method="post" action="/add_friend">
     <input type="text" name="friend_code" placeholder="HX-123456" required>
-    <button type="submit">Добавить друга</button>
+    <button type="submit">{{ 'Добавить друга' if language == 'ru' else 'Add friend' }}</button>
 </form>
 
 <div style="margin-bottom:20px;">
-    <button type="button" onclick="openBot()">Чат с ботом</button>
+    <button type="button" onclick="openBot()">{{ 'Чат с ботом' if language == 'ru' else 'Chat with bot' }}</button>
 </div>
 
 {% if not friends %}
-    <p style="text-align:center;margin-top:20px;">У вас пока нет друзей.</p>
+    <p style="text-align:center;margin-top:20px;">
+        {{ 'У вас пока нет друзей.' if language == 'ru' else 'You have no friends yet.' }}
+    </p>
 {% endif %}
 
 <div class="chat-layout">
     <div class="friends-panel">
-        <h3>Список друзей</h3>
+        <h3>{{ 'Список друзей' if language == 'ru' else 'Friend list' }}</h3>
 
         {% for f in friends %}
         <div class="friend-card">
@@ -33,19 +35,21 @@
                 {% if f[2] and f[2] > 0 %}
                     <span class="chat-dot"></span>
                 {% endif %}
-                <a class="friend-profile-btn" href="#" onclick="openProfile('{{f[1]}}'); return false;">Профиль</a>
+                <a class="friend-profile-btn" href="#" onclick="openProfile('{{f[1]}}'); return false;">
+                    {{ 'Профиль' if language == 'ru' else 'Profile' }}
+                </a>
             </div>
         </div>
         {% endfor %}
     </div>
 
     <div class="chat-panel">
-        <h2 id="chatTitle">Выберите друга</h2>
+        <h2 id="chatTitle">{{ 'Выберите друга' if language == 'ru' else 'Choose a friend' }}</h2>
         <div id="messages"></div>
 
         <form id="sendForm">
-            <input type="text" id="messageInput" placeholder="Введите сообщение">
-            <button type="submit">Отправить</button>
+            <input type="text" id="messageInput" placeholder="{{ 'Введите сообщение' if language == 'ru' else 'Type a message' }}">
+            <button type="submit">{{ 'Отправить' if language == 'ru' else 'Send' }}</button>
         </form>
     </div>
 </div>
@@ -129,7 +133,7 @@ function markChatRead(code) {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({from_code: code})
-    }).then(() => updateNotifications());
+    });
 }
 
 function openProfile(code) {
@@ -143,7 +147,7 @@ function openProfile(code) {
                     <h2>${data.nickname}</h2>
                     <p class="profile-code">${data.hx_code}</p>
                     <div class="profile-bio">
-                        <h3>О пользователе</h3>
+                        <h3>${"О пользователе"}</h3>
                         <p>${data.bio ? data.bio : "Пока нет описания."}</p>
                     </div>
                 </div>

@@ -1,20 +1,21 @@
 {% extends "base.html" %}
-{% block title %}HyperChat — Вход{% endblock %}
+{% block title %}HyperChat — {{ 'Вход' if language == 'ru' else 'Login' }}{% endblock %}
 
 {% block content %}
-<h2>HyperChat вход</h2>
+<h2>HyperChat {{ 'вход' if language == 'ru' else 'login' }}</h2>
 
 {% if error %}
   <div class="error">{{ error }}</div>
 {% endif %}
 
 <form method="post">
-  <input name="nickname" placeholder="Никнейм" required autofocus>
-  <input name="password" type="password" placeholder="Пароль" required>
-  <button type="submit">Войти</button>
+  <input name="nickname" placeholder="{{ 'Никнейм' if language == 'ru' else 'Nickname' }}" required autofocus>
+  <input name="password" type="password" placeholder="{{ 'Пароль' if language == 'ru' else 'Password' }}" required>
+  <button type="submit">{{ 'Войти' if language == 'ru' else 'Login' }}</button>
 </form>
 
 <p style="text-align:center;">
-  Нет аккаунта? <a href="/register">Регистрация</a>
+  {{ 'Нет аккаунта?' if language == 'ru' else 'No account?' }}
+  <a href="/register">{{ 'Регистрация' if language == 'ru' else 'Register' }}</a>
 </p>
 {% endblock %}

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}HyperChat — {{ 'Настройки' if language == 'ru' else 'Settings' }}{% endblock %}
+
+{% block content %}
+<h2>{{ 'Настройки' if language == 'ru' else 'Settings' }}</h2>
+
+<form method="post" class="settings-card">
+    <label>{{ 'Тема' if language == 'ru' else 'Theme' }}</label>
+    <select name="theme">
+        <option value="dark" {% if theme == 'dark' %}selected{% endif %}>
+            {{ 'Тёмная' if language == 'ru' else 'Dark' }}
+        </option>
+        <option value="light" {% if theme == 'light' %}selected{% endif %}>
+            {{ 'Светлая' if language == 'ru' else 'Light' }}
+        </option>
+    </select>
+
+    <label>{{ 'Язык интерфейса' if language == 'ru' else 'Interface language' }}</label>
+    <select name="language">
+        <option value="ru" {% if language == 'ru' %}selected{% endif %}>Русский</option>
+        <option value="en" {% if language == 'en' %}selected{% endif %}>English</option>
+    </select>
+
+    <button type="submit">{{ 'Сохранить' if language == 'ru' else 'Save' }}</button>
+</form>
+{% endblock %}

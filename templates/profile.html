@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}HyperChat — Профиль{% endblock %}
+{% block title %}HyperChat — {{ 'Профиль' if language == 'ru' else 'Profile' }}{% endblock %}
 
 {% block content %}
-<h2>Мой профиль</h2>
+<h2>{{ 'Мой профиль' if language == 'ru' else 'My profile' }}</h2>
 
 <div class="profile-card">
     <div class="profile-avatar">{{ user[0][0] }}</div>
@@ -11,10 +11,10 @@
 
     <form method="post">
         <div class="profile-bio">
-            <h3>О себе</h3>
-            <textarea name="bio" rows="6" placeholder="Расскажи о себе">{{ user[2] }}</textarea>
+            <h3>{{ 'О себе' if language == 'ru' else 'About me' }}</h3>
+            <textarea name="bio" rows="6" placeholder="{{ 'Расскажи о себе' if language == 'ru' else 'Tell about yourself' }}">{{ user[2] }}</textarea>
         </div>
-        <button type="submit">Сохранить</button>
+        <button type="submit">{{ 'Сохранить' if language == 'ru' else 'Save' }}</button>
     </form>
 </div>
 {% endblock %}

@@ -1,51 +1,25 @@
 <!doctype html>
-<html lang="ru">
+<html lang="{{ session.get('language', 'ru') }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}HyperChat{% endblock %}</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body>
+<body class="{{ session.get('theme', 'dark') }}">
 
 <div class="container">
-    <nav>
-        <a href="/profile">Профиль</a>
-        <a href="/friends">Друзья</a>
-        <a href="/logout">Выйти</a>
-
-        <div class="notif-wrap">
-            <div id="notifBell" class="notif-bell">🔔</div>
-            <div id="notifCount" class="notif-count hidden">0</div>
+    <nav class="topbar">
+        <div class="nav-left">
+            <a href="/profile">{{ 'Профиль' if session.get('language','ru') == 'ru' else 'Profile' }}</a>
+            <a href="/friends">{{ 'Друзья' if session.get('language','ru') == 'ru' else 'Friends' }}</a>
+            <a href="/settings">{{ 'Настройки' if session.get('language','ru') == 'ru' else 'Settings' }}</a>
+            <a href="/logout">{{ 'Выйти' if session.get('language','ru') == 'ru' else 'Logout' }}</a>
         </div>
     </nav>
 
     {% block content %}{% endblock %}
 </div>
-
-<script>
-function updateNotifications() {
-    const countBox = document.getElementById("notifCount");
-    const bell = document.getElementById("notifBell");
-    if (!countBox || !bell) return;
-
-    fetch("/notifications_count", {cache: "no-store"})
-        .then(r => r.json())
-        .then(data => {
-            if (data.count > 0) {
-                countBox.textContent = data.count;
-                countBox.classList.remove("hidden");
-                bell.classList.add("bell-shake");
-            } else {
-                countBox.classList.add("hidden");
-                bell.classList.remove("bell-shake");
-            }
-        });
-}
-
-setInterval(updateNotifications, 1500);
-updateNotifications();
-</script>
 
 {% block scripts %}{% endblock %}
 </body>
