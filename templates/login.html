@@ -11,6 +11,12 @@
 <form method="post">
   <input name="nickname" placeholder="{{ 'Никнейм' if language == 'ru' else 'Nickname' }}" required autofocus>
   <input name="password" type="password" placeholder="{{ 'Пароль' if language == 'ru' else 'Password' }}" required>
+
+  <label style="display:flex;align-items:center;gap:8px;margin-top:10px;">
+    <input type="checkbox" name="remember">
+    <span>{{ 'Запомнить меня' if language == 'ru' else 'Remember me' }}</span>
+  </label>
+
   <button type="submit">{{ 'Войти' if language == 'ru' else 'Login' }}</button>
 </form>
 

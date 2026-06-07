@@ -3,10 +3,12 @@ import sqlite3
 import random
 import string
 import os
+from datetime import timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.secret_key = "hyperchat_secret_key"
+app.permanent_session_lifetime = timedelta(days=30)
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DB_NAME = os.path.join(BASE_DIR, "hyperchat.db")
@@ -158,6 +160,7 @@ def register():
         conn.close()
 
         session["hx_code"] = hx_code
+        session.permanent = True
         return redirect("/friends")
 
     return render_template("register.html", theme=current_theme(), language=current_language())
@@ -168,6 +171,7 @@ def login():
     if request.method == "POST":
         nickname = request.form["nickname"].strip()
         password = request.form["password"].strip()
+        remember = request.form.get("remember") == "on"
 
         user = get_user_by_nickname(nickname)
         if not user:
@@ -178,6 +182,7 @@ def login():
             return render_template("login.html", error="Неверный ник или пароль", theme=current_theme(), language=current_language())
 
         session["hx_code"] = db_hx_code
+        session.permanent = remember
         return redirect("/friends")
 
     return render_template("login.html", theme=current_theme(), language=current_language())
@@ -471,7 +476,12 @@ def mark_notification_read():
 
 @app.route("/logout")
 def logout():
+    theme = session.get("theme", "dark")
+    language = session.get("language", "ru")
     session.clear()
+    session["theme"] = theme
+    session["language"] = language
+    session.permanent = False
     return redirect("/login")
 
 
