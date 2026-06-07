@@ -22,120 +22,13 @@
                     <svg class="bell-icon" viewBox="0 0 16 16" aria-hidden="true">
                         <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2M8 1.918l-.797.161A4 4 0 0 0 4 6c0 .628-.134 2.197-.459 3.742-.16.767-.376 1.566-.663 2.258h10.244c-.287-.692-.502-1.49-.663-2.258C12.134 8.197 12 6.628 12 6a4 4 0 0 0-3.203-3.92zM14.22 12c.223.447.481.801.78 1H1c.299-.199.557-.553.78-1C2.68 10.2 3 6.88 3 6c0-2.42 1.72-4.44 4.005-4.901a1 1 0 1 1 1.99 0A5 5 0 0 1 13 6c0 .88.32 4.2 1.22 6"/>
                     </svg>
-                    <span id="notifCount" class="notif-count hidden">0</span>
                 </button>
-
-                <div id="notifDropdown" class="notif-dropdown hidden">
-                    <div class="notif-dropdown-title">Уведомления</div>
-                    <div id="notifList" class="notif-list"></div>
-                </div>
             </div>
         </div>
     </nav>
 
     {% block content %}{% endblock %}
 </div>
-
-<script>
-let notifOpen = false;
-
-function escapeHtml(text) {
-    return String(text)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-}
-
-function updateNotifications() {
-    const countBox = document.getElementById("notifCount");
-    const bell = document.getElementById("notifBell");
-    const dropdown = document.getElementById("notifDropdown");
-    const list = document.getElementById("notifList");
-    if (!countBox || !bell || !dropdown || !list) return;
-
-    fetch("/notifications_list", {cache: "no-store"})
-        .then(r => r.json())
-        .then(items => {
-            const unread = items.filter(x => !x.is_read);
-
-            if (unread.length > 0) {
-                countBox.textContent = unread.length;
-                countBox.classList.remove("hidden");
-                bell.classList.add("bell-shake");
-            } else {
-                countBox.classList.add("hidden");
-                bell.classList.remove("bell-shake");
-            }
-
-            list.innerHTML = "";
-            if (!items.length) {
-                list.innerHTML = `<div class="notif-empty">Пока нет уведомлений</div>`;
-                return;
-            }
-
-            items.forEach(item => {
-                const el = document.createElement("div");
-                el.className = "notif-item" + (item.is_read ? "" : " unread");
-                el.innerHTML = `
-                    <div class="notif-item-top">
-                        <span class="notif-name">${escapeHtml(item.from_name)}</span>
-                        ${item.is_read ? "" : '<span class="notif-new-dot"></span>'}
-                    </div>
-                    <div class="notif-text">${escapeHtml(item.message)}</div>
-                    <div class="notif-time">${escapeHtml(item.created || "")}</div>
-                `;
-                el.onclick = () => {
-                    fetch("/mark_notification_read", {
-                        method: "POST",
-                        headers: {"Content-Type": "application/json"},
-                        body: JSON.stringify({id: item.id})
-                    }).then(() => updateNotifications());
-                };
-                list.appendChild(el);
-            });
-        })
-        .catch(() => {});
-}
-
-function toggleNotifications(e) {
-    if (e) e.stopPropagation();
-    const dropdown = document.getElementById("notifDropdown");
-    if (!dropdown) return;
-    notifOpen = !notifOpen;
-    dropdown.classList.toggle("hidden", !notifOpen);
-}
-
-document.addEventListener("click", function(e) {
-    const wrap = document.querySelector(".notif-wrap");
-    if (!wrap) return;
-    if (!wrap.contains(e.target)) {
-        const dropdown = document.getElementById("notifDropdown");
-        if (dropdown) dropdown.classList.add("hidden");
-        notifOpen = false;
-    }
-});
-
-window.addEventListener("resize", function() {
-    const dropdown = document.getElementById("notifDropdown");
-    if (!dropdown) return;
-    if (window.innerWidth <= 600 && !dropdown.classList.contains("hidden")) {
-        dropdown.style.left = "10px";
-        dropdown.style.right = "10px";
-    } else {
-        dropdown.style.left = "";
-        dropdown.style.right = "";
-    }
-});
-
-document.addEventListener("DOMContentLoaded", function() {
-    const bell = document.getElementById("notifBell");
-    if (bell) bell.addEventListener("click", toggleNotifications);
-    updateNotifications();
-    setInterval(updateNotifications, 1500);
-});
-</script>
 
 {% block scripts %}{% endblock %}
 </body>
