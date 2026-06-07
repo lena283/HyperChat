@@ -95,10 +95,12 @@ function updateNotifications() {
                 };
                 list.appendChild(el);
             });
-        });
+        })
+        .catch(() => {});
 }
 
-function toggleNotifications() {
+function toggleNotifications(e) {
+    if (e) e.stopPropagation();
     const dropdown = document.getElementById("notifDropdown");
     if (!dropdown) return;
     notifOpen = !notifOpen;
@@ -112,6 +114,18 @@ document.addEventListener("click", function(e) {
         const dropdown = document.getElementById("notifDropdown");
         if (dropdown) dropdown.classList.add("hidden");
         notifOpen = false;
+    }
+});
+
+window.addEventListener("resize", function() {
+    const dropdown = document.getElementById("notifDropdown");
+    if (!dropdown) return;
+    if (window.innerWidth <= 600 && !dropdown.classList.contains("hidden")) {
+        dropdown.style.left = "10px";
+        dropdown.style.right = "10px";
+    } else {
+        dropdown.style.left = "";
+        dropdown.style.right = "";
     }
 });
 
