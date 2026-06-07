@@ -4,31 +4,48 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}HyperChat{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 
 <div class="container">
-    <nav class="topbar">
-        <div class="nav-left">
-            <a href="/profile">Профиль</a>
-            <a href="/friends">Друзья</a>
-            <a href="/logout">Выйти</a>
-        </div>
+    <nav>
+        <a href="/profile">Профиль</a>
+        <a href="/friends">Друзья</a>
+        <a href="/logout">Выйти</a>
 
-        <div class="nav-right">
-            <div class="notif-wrap">
-                <button type="button" id="notifBell" class="notif-bell-btn" aria-label="Уведомления">
-                    <svg class="bell-icon" viewBox="0 0 16 16" aria-hidden="true">
-                        <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2M8 1.918l-.797.161A4 4 0 0 0 4 6c0 .628-.134 2.197-.459 3.742-.16.767-.376 1.566-.663 2.258h10.244c-.287-.692-.502-1.49-.663-2.258C12.134 8.197 12 6.628 12 6a4 4 0 0 0-3.203-3.92zM14.22 12c.223.447.481.801.78 1H1c.299-.199.557-.553.78-1C2.68 10.2 3 6.88 3 6c0-2.42 1.72-4.44 4.005-4.901a1 1 0 1 1 1.99 0A5 5 0 0 1 13 6c0 .88.32 4.2 1.22 6"/>
-                    </svg>
-                </button>
-            </div>
+        <div class="notif-wrap">
+            <div id="notifBell" class="notif-bell">🔔</div>
+            <div id="notifCount" class="notif-count hidden">0</div>
         </div>
     </nav>
 
     {% block content %}{% endblock %}
 </div>
+
+<script>
+function updateNotifications() {
+    const countBox = document.getElementById("notifCount");
+    const bell = document.getElementById("notifBell");
+    if (!countBox || !bell) return;
+
+    fetch("/notifications_count", {cache: "no-store"})
+        .then(r => r.json())
+        .then(data => {
+            if (data.count > 0) {
+                countBox.textContent = data.count;
+                countBox.classList.remove("hidden");
+                bell.classList.add("bell-shake");
+            } else {
+                countBox.classList.add("hidden");
+                bell.classList.remove("bell-shake");
+            }
+        });
+}
+
+setInterval(updateNotifications, 1500);
+updateNotifications();
+</script>
 
 {% block scripts %}{% endblock %}
 </body>
