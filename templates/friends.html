@@ -23,7 +23,7 @@
 
         {% for f in friends %}
         <div class="friend-card">
-            <div class="friend-main" onclick="openChat('{{f[1]}}','{{f[0]}}')">
+            <div class="friend-main" onclick="openChat('{{f[1]}}','{{f[0]}}')" data-code="{{f[1]}}">
                 <b>{{f[0]}}</b>
                 <br>
                 <small>{{f[1]}}</small>
