@@ -3,12 +3,10 @@ import sqlite3
 import random
 import string
 import os
-from datetime import timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.secret_key = "hyperchat_secret_key"
-app.permanent_session_lifetime = timedelta(days=30)
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DB_NAME = os.path.join(BASE_DIR, "hyperchat.db")
@@ -118,14 +116,6 @@ def get_user_by_nickname(nickname):
     return user
 
 
-def current_theme():
-    return session.get("theme", "dark")
-
-
-def current_language():
-    return session.get("language", "ru")
-
-
 @app.route("/")
 def home():
     if "hx_code" not in session:
@@ -140,14 +130,14 @@ def register():
         password = request.form["password"].strip()
 
         if not nickname or not password:
-            return render_template("register.html", error="Введите ник и пароль", theme=current_theme(), language=current_language())
+            return render_template("register.html", error="Введите ник и пароль")
 
         conn = sqlite3.connect(DB_NAME)
         cur = conn.cursor()
         cur.execute("SELECT id FROM users WHERE nickname=?", (nickname,))
         if cur.fetchone():
             conn.close()
-            return render_template("register.html", error="Такой ник уже занят", theme=current_theme(), language=current_language())
+            return render_template("register.html", error="Такой ник уже занят")
 
         hx_code = generate_hx()
         password_hash = generate_password_hash(password)
@@ -160,10 +150,9 @@ def register():
         conn.close()
 
         session["hx_code"] = hx_code
-        session.permanent = True
         return redirect("/friends")
 
-    return render_template("register.html", theme=current_theme(), language=current_language())
+    return render_template("register.html")
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -171,38 +160,19 @@ def login():
     if request.method == "POST":
         nickname = request.form["nickname"].strip()
         password = request.form["password"].strip()
-        remember = request.form.get("remember") == "on"
 
         user = get_user_by_nickname(nickname)
         if not user:
-            return render_template("login.html", error="Неверный ник или пароль", theme=current_theme(), language=current_language())
+            return render_template("login.html", error="Неверный ник или пароль")
 
         _, db_password_hash, db_hx_code, _ = user
         if not db_password_hash or not check_password_hash(db_password_hash, password):
-            return render_template("login.html", error="Неверный ник или пароль", theme=current_theme(), language=current_language())
+            return render_template("login.html", error="Неверный ник или пароль")
 
         session["hx_code"] = db_hx_code
-        session.permanent = remember
         return redirect("/friends")
 
-    return render_template("login.html", theme=current_theme(), language=current_language())
-
-
-@app.route("/settings", methods=["GET", "POST"])
-def settings():
-    if "hx_code" not in session:
-        return redirect("/login")
-
-    if request.method == "POST":
-        session["theme"] = request.form.get("theme", "dark")
-        session["language"] = request.form.get("language", "ru")
-        return redirect("/settings")
-
-    return render_template(
-        "settings.html",
-        theme=current_theme(),
-        language=current_language()
-    )
+    return render_template("login.html")
 
 
 @app.route("/profile", methods=["GET", "POST"])
@@ -223,7 +193,7 @@ def profile():
     user = cur.fetchone()
     conn.close()
 
-    return render_template("profile.html", user=user, theme=current_theme(), language=current_language())
+    return render_template("profile.html", user=user)
 
 
 @app.route("/api/user/<hx_code>")
@@ -304,7 +274,7 @@ def friends():
             friend_list.append((friend[0], friend[1], unread))
 
     conn.close()
-    return render_template("friends.html", friends=friend_list, theme=current_theme(), language=current_language())
+    return render_template("friends.html", friends=friend_list)
 
 
 @app.route("/send_ajax", methods=["POST"])
@@ -399,41 +369,6 @@ def notifications_count():
     return jsonify({"count": count})
 
 
-@app.route("/notifications_list")
-def notifications_list():
-    if "hx_code" not in session:
-        return jsonify([])
-
-    user_code = session["hx_code"]
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-
-    cur.execute("""
-        SELECT n.id, n.from_code, u.nickname, m.message, n.created, n.is_read
-        FROM notifications n
-        JOIN messages m ON m.id = n.message_id
-        LEFT JOIN users u ON u.hx_code = n.from_code
-        WHERE n.user_code=?
-        ORDER BY n.id DESC
-        LIMIT 10
-    """, (user_code,))
-
-    rows = cur.fetchall()
-    conn.close()
-
-    return jsonify([
-        {
-            "id": r[0],
-            "from_code": r[1],
-            "from_name": r[2] if r[2] else r[1],
-            "message": r[3],
-            "created": r[4],
-            "is_read": r[5]
-        }
-        for r in rows
-    ])
-
-
 @app.route("/mark_notifications_read", methods=["POST"])
 def mark_notifications_read():
     if "hx_code" not in session:
@@ -453,35 +388,9 @@ def mark_notifications_read():
     return jsonify({"ok": True})
 
 
-@app.route("/mark_notification_read", methods=["POST"])
-def mark_notification_read():
-    if "hx_code" not in session:
-        return jsonify({"ok": False})
-
-    data = request.get_json(silent=True) or {}
-    notif_id = data.get("id")
-    if not notif_id:
-        return jsonify({"ok": False})
-
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-    cur.execute(
-        "UPDATE notifications SET is_read=1 WHERE id=? AND user_code=?",
-        (notif_id, session["hx_code"])
-    )
-    conn.commit()
-    conn.close()
-    return jsonify({"ok": True})
-
-
 @app.route("/logout")
 def logout():
-    theme = session.get("theme", "dark")
-    language = session.get("language", "ru")
     session.clear()
-    session["theme"] = theme
-    session["language"] = language
-    session.permanent = False
     return redirect("/login")
 
 
