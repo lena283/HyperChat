@@ -201,3 +201,50 @@ nav a:hover {
     width:100%;
   }
 }
+.notif-wrap{
+    position: relative;
+    display: inline-block;
+    margin-left: 12px;
+    vertical-align: middle;
+}
+
+.notif-bell{
+    font-size: 24px;
+    cursor: pointer;
+    display: inline-block;
+    transform-origin: top center;
+}
+
+.notif-count{
+    position: absolute;
+    top: -8px;
+    right: -10px;
+    background: #ff3b30;
+    color: #fff;
+    border-radius: 999px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 0 2px #fff;
+}
+
+.hidden{
+    display: none;
+}
+
+.bell-shake{
+    animation: bellShake 0.6s infinite;
+}
+
+@keyframes bellShake{
+    0%{ transform: rotate(0deg); }
+    20%{ transform: rotate(15deg); }
+    40%{ transform: rotate(-12deg); }
+    60%{ transform: rotate(10deg); }
+    80%{ transform: rotate(-8deg); }
+    100%{ transform: rotate(0deg); }
+}

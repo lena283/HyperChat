@@ -14,6 +14,11 @@
         <a href="/profile">Профиль</a>
         <a href="/friends">Друзья</a>
         <a href="/logout">Выйти</a>
+
+        <div class="notif-wrap">
+            <div id="notifBell" class="notif-bell">🔔</div>
+            <div id="notifCount" class="notif-count hidden">0</div>
+        </div>
     </nav>
 
     <h2>Друзья</h2>
@@ -56,11 +61,6 @@
                 <input type="text" id="messageInput" placeholder="Введите сообщение">
                 <button type="submit">Отправить</button>
             </form>
-
-            <div style="margin-top:10px;">
-                <button type="button" onclick="startRecording()">🎤 Запись</button>
-                <button type="button" onclick="stopRecording()">⏹ Стоп</button>
-            </div>
         </div>
 
     </div>
@@ -71,19 +71,19 @@
 <script>
 let currentFriend = "";
 const BOT_CODE = "HX-000000";
-let mediaRecorder = null;
-let audioChunks = [];
 
 function openChat(code, name) {
     currentFriend = code;
     document.getElementById("chatTitle").innerText = "Чат с " + name;
     loadMessages();
+    markChatRead(code);
 }
 
 function openBot() {
     currentFriend = BOT_CODE;
     document.getElementById("chatTitle").innerText = "Чат с HyperBot";
     loadMessages();
+    markChatRead(BOT_CODE);
 }
 
 function loadMessages() {
@@ -94,23 +94,13 @@ function loadMessages() {
         .then(data => {
             let html = "";
             data.forEach(msg => {
-                if (msg.type === "voice") {
-                    html += `
-                        <div class="msg">
-                            <b>${msg.sender}</b>
-                            <br>
-                            <audio controls src="${msg.audio}"></audio>
-                        </div>
-                    `;
-                } else {
-                    html += `
-                        <div class="msg">
-                            <b>${msg.sender}</b>
-                            <br>
-                            ${msg.text}
-                        </div>
-                    `;
-                }
+                html += `
+                    <div class="msg">
+                        <b>${msg.sender}</b>
+                        <br>
+                        ${msg.text}
+                    </div>
+                `;
             });
             const box = document.getElementById("messages");
             box.innerHTML = html;
@@ -143,41 +133,35 @@ document.getElementById("sendForm").addEventListener("submit", function(e) {
     });
 });
 
-async function startRecording() {
-    if (currentFriend === "") return;
+function updateNotifications() {
+    fetch("/notifications_count", {cache: "no-store"})
+        .then(r => r.json())
+        .then(data => {
+            const countBox = document.getElementById("notifCount");
+            const bell = document.getElementById("notifBell");
 
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorder = new MediaRecorder(stream);
-    audioChunks = [];
-
-    mediaRecorder.ondataavailable = e => {
-        if (e.data.size > 0) audioChunks.push(e.data);
-    };
-
-    mediaRecorder.onstop = async () => {
-        const blob = new Blob(audioChunks, { type: "audio/webm" });
-        const formData = new FormData();
-        formData.append("audio", blob, "voice.webm");
-        formData.append("friend", currentFriend);
-
-        await fetch("/send_voice", {
-            method: "POST",
-            body: formData
+            if (data.count > 0) {
+                countBox.textContent = data.count;
+                countBox.classList.remove("hidden");
+                bell.classList.add("bell-shake");
+            } else {
+                countBox.classList.add("hidden");
+                bell.classList.remove("bell-shake");
+            }
         });
-
-        loadMessages();
-    };
-
-    mediaRecorder.start();
 }
 
-function stopRecording() {
-    if (mediaRecorder && mediaRecorder.state !== "inactive") {
-        mediaRecorder.stop();
-    }
+function markChatRead(code) {
+    fetch("/mark_notifications_read", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({from_code: code})
+    }).then(() => updateNotifications());
 }
 
 setInterval(loadMessages, 500);
+setInterval(updateNotifications, 1500);
+updateNotifications();
 </script>
 
 </body>

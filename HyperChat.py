@@ -35,7 +35,9 @@ def init_db():
         sender_code TEXT,
         receiver_code TEXT,
         message TEXT,
-        created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        msg_type TEXT DEFAULT 'text',
+        audio_path TEXT DEFAULT ''
     )
     """)
 
@@ -47,17 +49,33 @@ def init_db():
     )
     """)
 
-    cur.execute("PRAGMA table_info(users)")
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS notifications(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_code TEXT,
+        from_code TEXT,
+        message_id INTEGER,
+        is_read INTEGER DEFAULT 0,
+        created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    cur.execute("PRAGMA table_info(messages)")
     columns = [row[1] for row in cur.fetchall()]
 
-    if "password_hash" not in columns:
+    if "password_hash" not in [row[1] for row in cur.execute("PRAGMA table_info(users)")]:
         cur.execute("ALTER TABLE users ADD COLUMN password_hash TEXT")
-    if "nickname" not in columns:
+    if "nickname" not in [row[1] for row in cur.execute("PRAGMA table_info(users)")]:
         cur.execute("ALTER TABLE users ADD COLUMN nickname TEXT")
-    if "hx_code" not in columns:
+    if "hx_code" not in [row[1] for row in cur.execute("PRAGMA table_info(users)")]:
         cur.execute("ALTER TABLE users ADD COLUMN hx_code TEXT")
-    if "bio" not in columns:
+    if "bio" not in [row[1] for row in cur.execute("PRAGMA table_info(users)")]:
         cur.execute("ALTER TABLE users ADD COLUMN bio TEXT DEFAULT ''")
+
+    if "msg_type" not in columns:
+        cur.execute("ALTER TABLE messages ADD COLUMN msg_type TEXT DEFAULT 'text'")
+    if "audio_path" not in columns:
+        cur.execute("ALTER TABLE messages ADD COLUMN audio_path TEXT DEFAULT ''")
 
     cur.execute("SELECT id FROM users WHERE hx_code=?", (BOT_CODE,))
     if not cur.fetchone():
@@ -190,6 +208,7 @@ def add_friend():
 
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
+
     cur.execute("SELECT hx_code FROM users WHERE hx_code=?", (friend_code,))
     if not cur.fetchone():
         conn.close()
@@ -231,34 +250,6 @@ def friends():
     return render_template("friends.html", friends=friend_list)
 
 
-@app.route("/messages/<friend_code>")
-def get_messages(friend_code):
-    if "hx_code" not in session:
-        return jsonify([])
-
-    my_code = session["hx_code"]
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-
-    cur.execute("""
-        SELECT sender_code, message
-        FROM messages
-        WHERE
-        (sender_code=? AND receiver_code=?)
-        OR
-        (sender_code=? AND receiver_code=?)
-        ORDER BY id
-    """, (my_code, friend_code, friend_code, my_code))
-
-    rows = cur.fetchall()
-    conn.close()
-
-    return jsonify([
-        {"sender": r[0], "text": r[1]}
-        for r in rows
-    ])
-
-
 @app.route("/send_ajax", methods=["POST"])
 def send_ajax():
     if "hx_code" not in session:
@@ -274,29 +265,102 @@ def send_ajax():
 
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
+
     cur.execute(
-        "INSERT INTO messages(sender_code, receiver_code, message) VALUES(?,?,?)",
-        (my_code, friend_code, message)
+        "INSERT INTO messages(sender_code, receiver_code, message, msg_type, audio_path) VALUES(?,?,?,?,?)",
+        (my_code, friend_code, message, "text", "")
     )
-    conn.commit()
-    conn.close()
+    message_id = cur.lastrowid
+
+    cur.execute(
+        "INSERT INTO notifications(user_code, from_code, message_id) VALUES(?,?,?)",
+        (friend_code, my_code, message_id)
+    )
 
     if friend_code == BOT_CODE:
-        reply = "Сообщение получено."
         low = message.lower()
+        reply = "Сообщение получено."
         if "привет" in low or "hello" in low:
             reply = "Привет! Я HyperBot."
         elif "как дела" in low:
             reply = "У меня всё отлично. Чат работает."
-        conn = sqlite3.connect(DB_NAME)
-        cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO messages(sender_code, receiver_code, message) VALUES(?,?,?)",
-            (BOT_CODE, my_code, reply)
-        )
-        conn.commit()
-        conn.close()
 
+        cur.execute(
+            "INSERT INTO messages(sender_code, receiver_code, message, msg_type, audio_path) VALUES(?,?,?,?,?)",
+            (BOT_CODE, my_code, reply, "text", "")
+        )
+        bot_message_id = cur.lastrowid
+        cur.execute(
+            "INSERT INTO notifications(user_code, from_code, message_id) VALUES(?,?,?)",
+            (my_code, BOT_CODE, bot_message_id)
+        )
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({"ok": True})
+
+
+@app.route("/messages/<friend_code>")
+def get_messages(friend_code):
+    if "hx_code" not in session:
+        return jsonify([])
+
+    my_code = session["hx_code"]
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT sender_code, message, msg_type, audio_path
+        FROM messages
+        WHERE
+        (sender_code=? AND receiver_code=?)
+        OR
+        (sender_code=? AND receiver_code=?)
+        ORDER BY id
+    """, (my_code, friend_code, friend_code, my_code))
+
+    rows = cur.fetchall()
+    conn.close()
+
+    return jsonify([
+        {"sender": r[0], "text": r[1], "type": r[2], "audio": r[3]}
+        for r in rows
+    ])
+
+
+@app.route("/notifications_count")
+def notifications_count():
+    if "hx_code" not in session:
+        return jsonify({"count": 0})
+
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT COUNT(*) FROM notifications WHERE user_code=? AND is_read=0",
+        (session["hx_code"],)
+    )
+    count = cur.fetchone()[0]
+    conn.close()
+    return jsonify({"count": count})
+
+
+@app.route("/mark_notifications_read", methods=["POST"])
+def mark_notifications_read():
+    if "hx_code" not in session:
+        return jsonify({"ok": False})
+
+    data = request.get_json(silent=True) or {}
+    from_code = str(data.get("from_code", "")).strip().upper()
+
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE notifications SET is_read=1 WHERE user_code=? AND from_code=? AND is_read=0",
+        (session["hx_code"], from_code)
+    )
+    conn.commit()
+    conn.close()
     return jsonify({"ok": True})
 
 
